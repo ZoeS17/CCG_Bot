@@ -1,0 +1,6 @@
+[discord]
+guildid = "12345678910111213"
+token = "AbcDEFGhJkl0MnO1PQRsTUvx.Abcdef.AbCDefgHiJkLMNOpqrSTU0vWXy1"
+
+[twitch]
+channels = ["Twitch", "TwitchRivals"]
