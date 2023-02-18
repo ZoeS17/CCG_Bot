@@ -4,19 +4,19 @@ use std::io::Error as IoError;
 
 #[derive(Debug, Deserialize, Serialize)]
 struct ConfigToml {
-    #[cfg(feature = "discord")]
+    #[cfg(any(feature = "discord", feature = "full"))]
     discord: Option<ConfigTomlDiscord>,
-    #[cfg(feature = "twitch")]
+    #[cfg(any(feature = "twitch", feature = "full"))]
     twitch: Option<ConfigTomlTwitch>,
 }
 
-#[cfg(feature = "twitch")]
+#[cfg(any(feature = "twitch", feature = "full"))]
 #[derive(Clone, Debug, Deserialize, Serialize)]
 struct ConfigTomlTwitch {
     channels: Option<Vec<String>>,
 }
 
-#[cfg(feature = "discord")]
+#[cfg(any(feature = "discord", feature = "full"))]
 #[derive(Clone, Debug, Deserialize, Serialize)]
 struct ConfigTomlDiscord {
     guildid: Option<String>,
@@ -25,11 +25,11 @@ struct ConfigTomlDiscord {
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Config {
-    #[cfg(feature = "discord")]
+    #[cfg(any(feature = "discord", feature = "full"))]
     pub discord_guildid: String,
-    #[cfg(feature = "discord")]
+    #[cfg(any(feature = "discord", feature = "full"))]
     pub discord_token: String,
-    #[cfg(feature = "twitch")]
+    #[cfg(any(feature = "twitch", feature = "full"))]
     pub twitch_channels: Vec<String>,
 }
 
@@ -49,13 +49,13 @@ impl Config {
         let config_toml: ConfigToml = toml::from_str(&content).unwrap_or_else(|_| {
             eprintln!("Failed to create ConfigToml object out of config file.");
             ConfigToml {
-                #[cfg(feature = "discord")]
+                #[cfg(any(feature = "discord", feature = "full"))]
                 discord: None,
-                #[cfg(feature = "twitch")]
+                #[cfg(any(feature = "twitch", feature = "full"))]
                 twitch: None,
             }
         });
-        #[cfg(feature = "discord")]
+        #[cfg(any(feature = "discord", feature = "full"))]
         let discord_guildid: String = match config_toml.discord.clone() {
             Some(dgid) => dgid.guildid.unwrap_or_else(|| {
                 eprintln!("Missing field `guildid` in table [discord]");
@@ -66,7 +66,7 @@ impl Config {
                 "discord".to_string()
             },
         };
-        #[cfg(feature = "discord")]
+        #[cfg(any(feature = "discord", feature = "full"))]
         let discord_token: String = match config_toml.discord {
             Some(dt) => dt.token.unwrap_or_else(|| {
                 eprintln!("Missing field `token` in table [discord]");
@@ -77,7 +77,7 @@ impl Config {
                 "discord".to_string()
             },
         };
-        #[cfg(feature = "twitch")]
+        #[cfg(any(feature = "twitch", feature = "full"))]
         let twitch_channels: Vec<String> = match config_toml.twitch {
             Some(twitch) => twitch.channels.unwrap_or_else(|| {
                 eprintln!("Missing field `channels` in table [twitch]");
@@ -89,11 +89,11 @@ impl Config {
             },
         };
         Config {
-            #[cfg(feature = "discord")]
+            #[cfg(any(feature = "discord", feature = "full"))]
             discord_guildid,
-            #[cfg(feature = "discord")]
+            #[cfg(any(feature = "discord", feature = "full"))]
             discord_token,
-            #[cfg(feature = "twitch")]
+            #[cfg(any(feature = "twitch", feature = "full"))]
             twitch_channels,
         }
     }

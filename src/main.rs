@@ -13,16 +13,18 @@ use std::result::Result as StdResult;
 mod tests;
 
 mod config;
-#[cfg(feature = "discord")]
+#[cfg(any(feature = "discord", feature = "full"))]
 mod discord;
 #[macro_use]
 mod internals;
-#[cfg(feature = "twitch")]
+#[cfg(any(feature = "twitch", feature = "full"))]
 mod twitch;
 mod utils;
 
-#[cfg(feature = "discord")]
+#[cfg(any(feature = "discord", feature = "full"))]
 use discord::DiscordErr as DiscordError;
+#[cfg(any(feature = "twitch", feature = "full"))]
+use twitch::TwitchErr as TwitchError;
 
 pub type Result<T> = StdResult<T, Error>;
 
@@ -32,9 +34,9 @@ pub enum Error {
     Format(FormatError),
     Io(IoError),
     Json(JsonError),
-    #[cfg(feature = "discord")]
+    #[cfg(any(feature = "discord", feature = "full"))]
     Discord(DiscordError),
-    #[cfg(feature = "twitch")]
+    #[cfg(any(feature = "twitch", feature = "full"))]
     Twitch(TwitchError),
 }
 
@@ -53,14 +55,14 @@ impl From<JsonError> for Error {
         Error::Json(e)
     }
 }
-#[cfg(feature = "discord")]
+#[cfg(any(feature = "discord", feature = "full"))]
 impl From<DiscordError> for Error {
     fn from(e: DiscordError) -> Self {
         Error::Discord(e)
     }
 }
 
-#[cfg(feature ="twitch")]
+#[cfg(any(feature = "twitch", feature = "full"))]
 impl From<TwitchError> for Error {
     fn from(e: TwitchError) -> Self {
         Error::Twitch(e)
@@ -73,9 +75,9 @@ impl fmt::Display for Error {
             Self::Format(inner) => fmt::Display::fmt(&inner, f),
             Self::Io(inner) => fmt::Display::fmt(&inner, f),
             Self::Json(inner) => fmt::Display::fmt(&inner, f),
-            #[cfg(feature = "discord")]
+            #[cfg(any(feature = "discord", feature = "full"))]
             Self::Discord(inner) => fmt::Display::fmt(&inner, f),
-            #[cfg(feature = "twitch")]
+            #[cfg(any(feature = "twitch", feature = "full"))]
             Self::Twitch(inner) => fmt::Display::fmt(&inner, f),
         }
     }
@@ -87,9 +89,9 @@ impl StdError for Error {
             Self::Format(inner) => Some(inner),
             Self::Io(inner) => Some(inner),
             Self::Json(inner) => Some(inner),
-            #[cfg(feature = "discord")]
+            #[cfg(any(feature = "discord", feature = "full"))]
             Self::Discord(inner) => Some(inner),
-            #[cfg(feature = "twitch")]
+            #[cfg(any(feature = "twitch", feature = "full"))]
             Self::Twitch(inner) => Some(inner),
         }
     }
@@ -98,11 +100,11 @@ impl StdError for Error {
 #[tokio::main]
 async fn main() -> StdResult<(), Box<dyn StdError + Send + Sync>> {
     let mut log_var = String::from("");
-    for (k, v) in env::vars(){
-        if k == "RUST_LOG"{
+    for (k, v) in env::vars() {
+        if k == "RUST_LOG" {
             log_var = format!("{}", v);
         }
-    };
+    }
     // Initialize the logger to use environment variables.
     //
     // In this case, a good default is setting the environment variable
@@ -115,9 +117,9 @@ async fn main() -> StdResult<(), Box<dyn StdError + Send + Sync>> {
     tracing_subscriber::fmt::init();
 
     let config: Config = Config::new();
-    #[cfg(feature = "discord")]
+    #[cfg(any(feature = "discord", feature = "full"))]
     let discord_handle = discord::new(config).await;
-    #[cfg(feature = "discord")]
+    #[cfg(any(feature = "discord", feature = "full"))]
     dbg!(discord_handle?);
     Ok(())
 }

@@ -1,33 +1,43 @@
+//std
+use std::error;
+use std::fmt;
+use std::fs::File;
+use std::io::prelude::*;
+use std::str::FromStr;
+use std::sync::Arc;
+use std::time::Duration;
+
+//twitch_irc
+use twitch_irc::login::{LoginCredentials, RefreshingLoginCredentials};
+use twitch_irc::message::{PrivmsgMessage, ServerMessage};
+use twitch_irc::{ClientConfig, SecureWSTransport, TwitchIRCClient};
+
+//nom
+use nom::{branch::alt, bytes::complete::tag_no_case, Finish};
+
+//serde
+use serde_json;
+
+//tracing crates
+use tracing::{debug, error, info, instrument, subscriber::set_global_default, trace, warn};
+use tracing_bunyan_formatter::{BunyanFormattingLayer, JsonStorageLayer};
+use tracing_log::LogTracer;
+use tracing_subscriber::{layer::SubscriberExt, EnvFilter, Registry};
+
+//misc
 use governor::{Quota, RateLimiter};
 use lazy_static::lazy_static;
 use libghirahim::{GhirahimDB, UserRole};
 use nonzero_ext::*;
 use pkg_version;
 use prometheus::Encoder;
-use std::fs::File;
-use std::io::prelude::*;
-use std::str::FromStr;
-use std::sync::Arc;
-use std::time::Duration;
-use tldextract::{TldExtractor, TldOption};
-use tokio::sync::Semaphore;
-use twitch_irc::login::{LoginCredentials, RefreshingLoginCredentials};
-use twitch_irc::message::{PrivmsgMessage, ServerMessage};
-use twitch_irc::{ClientConfig, SecureWSTransport, TwitchIRCClient};
-
-use nom::{branch::alt, bytes::complete::tag_no_case, Finish};
-
-use serde_json;
-
 use prometheus::{register_counter_vec, Opts};
-
-use tracing::{debug, error, info, instrument, subscriber::set_global_default, trace, warn};
-use tracing_bunyan_formatter::{BunyanFormattingLayer, JsonStorageLayer};
-use tracing_log::LogTracer;
-use tracing_subscriber::{layer::SubscriberExt, EnvFilter, Registry};
-
-mod tokens;
+use tldextract::{TldExtractor, TldOption};
 use tokens::JsonTokenStorage;
+use tokio::sync::Semaphore;
+
+//modules
+mod tokens;
 
 const LEAVE_NOTICES: [&str; 6] = [
     "msg_banned",
@@ -81,6 +91,34 @@ const IGNORE_NOTICES: [&str; 25] = [
     "unban_success",
     "unmod_success",
 ];
+
+#[non_exhaustive]
+#[derive(Debug)]
+pub enum TwitchErr {
+    VarErr(std::env::VarError),
+}
+
+impl fmt::Display for TwitchErr {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            TwitchErr::VarErr(ref err) => write!(f, "Var error: {err}"),
+        }
+    }
+}
+
+impl error::Error for TwitchErr {
+    fn cause(&self) -> Option<&dyn error::Error> {
+        match *self {
+            TwitchErr::VarErr(ref err) => Some(err),
+        }
+    }
+}
+
+impl From<std::env::VarError> for TwitchErr {
+    fn from(err: std::env::VarError) -> TwitchErr {
+        TwitchErr::VarErr(err)
+    }
+}
 
 fn get_ghirahim_rs_version() -> String {
     format!(

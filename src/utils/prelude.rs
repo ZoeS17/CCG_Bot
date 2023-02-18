@@ -1,3 +1,3 @@
-pub use super::json::*;
-#[cfg(any(feature = "default", feature = "discord", feature = "full"))]
+#[cfg(any(feature = "discord", feature = "full"))]
 pub use super::commandinteraction;
+pub use super::json::*;

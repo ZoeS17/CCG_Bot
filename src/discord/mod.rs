@@ -1,6 +1,6 @@
 //crate
 use crate::config::Config;
-#[cfg(any(feature = "default", feature = "discord", feature = "full"))]
+#[cfg(any(feature = "discord", feature = "full"))]
 use crate::utils::commandinteraction::CommandInteraction;
 
 //serenity
@@ -147,7 +147,7 @@ pub async fn new(config: Config) -> Result<Handler, serenity::Error> {
     let c = std::result::Result::Ok(Handler(Config {
         discord_guildid: "".to_string(),
         discord_token: "".to_string(),
-        #[cfg(feature = "twitch")]
+        #[cfg(any(feature = "twitch", feature = "full"))]
         twitch_channels: vec!["".to_string()],
     }));
 

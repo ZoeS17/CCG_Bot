@@ -1,6 +1,6 @@
 //crate
 use crate::discord::builders::discordembed::*;
-#[cfg(any(feature = "default", feature = "discord", feature = "full"))]
+#[cfg(any(feature = "discord", feature = "full"))]
 use crate::utils::commandinteraction::CommandInteraction;
 
 //serenity

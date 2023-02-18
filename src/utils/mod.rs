@@ -1,4 +1,4 @@
-#[cfg(any(feature = "default", feature = "discord", feature = "full"))]
+#[cfg(any(feature = "discord", feature = "full"))]
 pub mod commandinteraction;
 pub mod json;
 pub mod prelude;
