@@ -10,7 +10,7 @@ version = "0.0.1"
 edition = "2021"
 include = ["LICENSE.md", "README.md"]
 publish = false
-rust-version = "1.60"
+rust-version = "1.63"
 
 [dependencies]
 async-trait = "0.1"
