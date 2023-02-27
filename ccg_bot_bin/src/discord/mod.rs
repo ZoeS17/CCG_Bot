@@ -1,3 +1,5 @@
+//!Discord module go brr!!!
+
 //crate
 use crate::config::Config;
 #[cfg(any(feature = "discord", feature = "full"))]
@@ -16,9 +18,17 @@ use std::error;
 use std::fmt;
 
 //re-exports
-pub(crate) mod builders;
-pub(crate) mod cache;
-pub(crate) mod commands;
+#[cfg(all(any(feature = "discord", feature = "full"), not(test)))]
+mod builders;
+#[cfg(all(any(feature = "discord", feature = "full"), test))]
+pub mod builders;
+
+#[doc(hidden)]
+mod cache;
+#[cfg(all(any(feature = "discord", feature = "full"), not(test)))]
+mod commands;
+#[cfg(all(any(feature = "discord", feature = "full"), test))]
+pub mod commands;
 
 #[derive(Debug)]
 pub struct Handler(pub Config);
@@ -66,6 +76,8 @@ impl EventHandler for Handler {
         info!("I now have the following guild slash commands: {:?}", vec_commands);
     }
 
+    ///This prints every message the bot can see, in the format:
+    ///<pre>[Channel] Author: Message</pre>
     async fn message<'a>(&'a self, ctx: Context, msg: Message) {
         let channel_name: String = match ctx.cache.guild_channel(msg.channel_id) {
             Some(channel) => channel.name,
@@ -75,7 +87,6 @@ impl EventHandler for Handler {
     }
 }
 
-#[non_exhaustive]
 #[derive(Debug)]
 pub enum DiscordErr {
     Serenity(serenity::Error),

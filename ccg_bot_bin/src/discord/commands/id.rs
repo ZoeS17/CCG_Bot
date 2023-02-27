@@ -1,4 +1,7 @@
-//Crate imports
+//!Returns an embed with with user id, name, a mention,
+//!, the user's avatar, and (if in the guild) a list of roles.
+
+//crate imports
 use crate::discord::builders::discordembed::*;
 #[cfg(any(feature = "discord", feature = "full"))]
 use crate::utils::commandinteraction::{CommandInteraction, CommandInteractionResolved};
@@ -14,6 +17,7 @@ use serenity::utils::Color;
 //std imports
 use std::sync::Arc;
 
+///Called when the command is run in a guild.
 pub fn run(options: &CommandInteraction, cache: Arc<Cache>) -> CreateEmbed {
     debug!("{:?}", options.clone());
     let c = &*Arc::try_unwrap(cache.clone()).unwrap_err();
@@ -64,6 +68,7 @@ pub fn run(options: &CommandInteraction, cache: Arc<Cache>) -> CreateEmbed {
     }
 }
 
+///Register the command to be used in the guild.
 pub fn register(command: &mut CreateApplicationCommand) -> &mut CreateApplicationCommand {
     command.name("id").description("Get a user id").create_option(|option| {
         option

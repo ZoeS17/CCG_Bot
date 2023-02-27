@@ -1,0 +1,18 @@
+[package]
+authors = ["Zoe Kahala <>"]
+name = "ccg_bot_sys"
+license = "EUPL-1.2"
+repository = "https://github.com/ZoeS17/CCG_Bot.git"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+proc-macro2 = "1.0.51"
+quote = "1.0.23"
+syn = "1.0.109"
+
+[lib]
+proc-macro = true

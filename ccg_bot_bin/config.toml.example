@@ -4,3 +4,4 @@ token = "AbcDEFGhJkl0MnO1PQRsTUvx.Abcdef.AbCDefgHiJkLMNOpqrSTU0vWXy1"
 
 [twitch]
 channels = ["Twitch", "TwitchRivals"]
+token = ""#Scoped OAuth chat token

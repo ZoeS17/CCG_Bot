@@ -1,0 +1,4 @@
+.cargo/
+ccg_bot_bin/config.toml
+/target
+ccg_bot_sys/target

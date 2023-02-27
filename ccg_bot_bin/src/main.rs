@@ -1,8 +1,20 @@
+#![deny(rustdoc::broken_intra_doc_links)]
+#![deny(rustdoc::missing_safety_doc)]
+#![warn(rustdoc::missing_crate_level_docs)]
+#![warn(missing_docs)]
+//Crate doc
+#![doc = include_str!("../../README.md")]
+
 #[macro_use]
 extern crate tracing;
 
+//crate
 use config::Config;
+
+// serde
 use serde_json::Error as JsonError;
+
+//std
 use std::env;
 use std::error::Error as StdError;
 use std::fmt::{self, Error as FormatError};
@@ -26,16 +38,20 @@ use discord::DiscordErr as DiscordError;
 #[cfg(any(feature = "twitch", feature = "full"))]
 use twitch::TwitchErr as TwitchError;
 
-pub type Result<T> = StdResult<T, Error>;
-
+///This is an enum of all the error types this crate handles
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum Error {
+    ///This is a tuple struct of [`FormatError`]
     Format(FormatError),
+    ///This is a tuple struct of [`IoError`]
     Io(IoError),
+    ///This is a tuple struct of [`JsonError`]
     Json(JsonError),
+    ///This is a tuple struct of [`DiscordError`] and is behind the `discord` feature flag which is enabled by default
     #[cfg(any(feature = "discord", feature = "full"))]
     Discord(DiscordError),
+    ///This is a tuple struct of [`TwitchError`] and is behind the `twitch` feature flag which is disabled by default
     #[cfg(any(feature = "twitch", feature = "full"))]
     Twitch(TwitchError),
 }
@@ -102,14 +118,14 @@ async fn main() -> StdResult<(), Box<dyn StdError + Send + Sync>> {
     let mut log_var = String::from("");
     for (k, v) in env::vars() {
         if k == "RUST_LOG" {
-            log_var = format!("{}", v);
+            log_var = v.to_string();
         }
     }
     // Initialize the logger to use environment variables.
     //
     // In this case, a good default is setting the environment variable
     // `RUST_LOG` to `debug`, but for production, use the variable defined below.
-    if log_var.len() > 0 {
+    if !log_var.is_empty() {
         env::set_var("RUST_LOG", format!("warn,ccg_bot={},meio=error", log_var));
     } else {
         env::set_var("RUST_LOG", "warn,CCG_Bot=warn,meio=error");

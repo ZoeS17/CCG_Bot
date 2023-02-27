@@ -1,3 +1,7 @@
+//!Reimplimentation of some Serenity's [application_command] structs and enums as they were non_exhaustive.
+//!
+//! [application_command]: serenity::model::application::interaction::application_command
+
 //crate
 use crate::utils::json::prelude::*;
 use crate::StdResult;
@@ -16,6 +20,7 @@ use serenity::model::{
     user::User,
 };
 
+///Reimplimentation of Serenity's [CommandType] as it was non_exhaustive
 #[derive(Copy, Clone, Debug, Hash, Eq, PartialEq, PartialOrd, Ord)]
 #[repr(u8)]
 pub enum LocalCommandType {
@@ -39,6 +44,7 @@ impl From<CommandType> for LocalCommandType {
     }
 }
 
+///Reimplimentation of Serenity's [CommandDataOptionValue] as it was non_exhaustive
 #[derive(Clone, Debug, Serialize)]
 pub enum CommandInteractionResolved {
     String(String),
@@ -67,6 +73,7 @@ impl From<CommandDataOptionValue> for CommandInteractionResolved {
     }
 }
 
+///Reimplimentation of Serenity's [CommandDataOption] as it was non_exhaustive
 #[derive(Clone, Debug, Serialize)]
 pub struct CommandInteraction {
     /// The name of the parameter.
