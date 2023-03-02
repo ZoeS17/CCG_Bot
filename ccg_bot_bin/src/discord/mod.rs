@@ -2,7 +2,6 @@
 
 //crate
 use crate::config::Config;
-#[cfg(any(feature = "discord", feature = "full"))]
 use crate::utils::commandinteraction::CommandInteraction;
 
 //serenity
@@ -39,8 +38,9 @@ impl EventHandler for Handler {
         if let Interaction::ApplicationCommand(command) = interaction {
             let context = ctx.clone();
             let cache = context.cache;
-            debug!("{:?}", &command.data);
+            trace!("{:?}", &command.data);
             let opt: CommandInteraction = (*command.data.options.get(0).expect("")).clone().into();
+            debug!("{:?}", &opt);
             let content = match command.data.name.as_str() {
                 "ping" => commands::ping::run(&opt, cache),
                 "id" => commands::id::run(&opt, cache),

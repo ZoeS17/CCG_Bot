@@ -204,6 +204,7 @@ fn id_command() {
                 .to_string(),
         )
         .color(Color::new(0x500060_u32))
+        .title(format!("{}'s info (w/ guild roles)", user.name))
         .build();
     embed.author(|a| a.name("".to_string()).url(cdn!("/embed/avatars/0.png").to_string()));
     dbg!(&run.0);
@@ -244,6 +245,7 @@ fn id_command_no_member() {
                 .to_string(),
         )
         .color(Color::new(0x500060_u32))
+        .title(format!("{}'s info", user.name))
         .build();
     embed.author(|a| a.name("".to_string()).url(cdn!("/embed/avatars/0.png").to_string()));
     assert_eq!(Value::from(hashmap_to_json_map(run.0)), Value::from(hashmap_to_json_map(embed.0)));
@@ -374,6 +376,7 @@ fn embed_builder() {
         .field("mention", format!("<@{}>", user.id), true)
         .thumbnail(user.face())
         .color(Color::new(0x500060_u32))
+        .title("Embed builder test")
         .build();
     embed.author(|a| {
         a.name("Courtesy Call Bot".to_string()).url(
@@ -383,4 +386,37 @@ fn embed_builder() {
     });
     //Maybe add a deserialize embed with a serde_json::json!(embed) and a handcrafted
     //string inside an assert?
+}
+
+#[test]
+fn ping_comand() {
+    use super::super::discord::commands::ping;
+    let cache = Cache::new();
+    let user = TestUser::default();
+    let user_str = to_string(&user).unwrap();
+    let user_cast = from_str::<SerenityUser>(&user_str).unwrap();
+    let resolved_obj = CommandInteractionResolved::User(user_cast, None);
+    let test_ci = CommandInteraction {
+        name: "ping".to_string(),
+        value: Some(Value::from(TestUser::default().id.to_string())),
+        kind: CommandOptionType::User,
+        options: vec![],
+        resolved: Some(resolved_obj),
+        focused: false,
+    };
+    let options = test_ci;
+    let c = Arc::new(cache);
+    let run = ping::run(&options, c);
+    //test embed
+    let mut embed = DiscordEmbed::new()
+        .field("Greetings", "Program".to_string(), true)
+        .color(Color::new(0x500060_u32))
+        .thumbnail(
+            "https://cdn.discordapp.com/emojis/938514423155400804.webp?size=48&quality=lossless",
+        )
+        .title("Pong")
+        .build();
+    embed.author(|a| a.name("".to_string()).url(cdn!("/embed/avatars/0.png").to_string()));
+    //result
+    assert_eq!(Value::from(hashmap_to_json_map(run.0)), Value::from(hashmap_to_json_map(embed.0)));
 }

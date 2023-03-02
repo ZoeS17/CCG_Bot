@@ -1,10 +1,11 @@
-//Allow this as it is the return type `hashmap_to_json_map` which is used in tests.(see below)
-#[allow(dead_code)]
+#[cfg(all(any(feature = "discord", feature = "full"), test))]
 pub type JsonMap = serde_json::Map<String, Value>;
 pub type Value = serde_json::Value;
 pub use serde_json::json;
 pub use serde_json::Error as JsonError;
+#[cfg(all(any(feature = "discord", feature = "full"), test))]
 use std::collections::HashMap;
+#[cfg(all(any(feature = "discord", feature = "full"), test))]
 use std::hash::{BuildHasher, Hash};
 
 pub trait ToNumber {
@@ -17,12 +18,12 @@ impl<T: Into<serde_json::Number>> ToNumber for T {
     }
 }
 
-pub(crate) fn from_number(n: impl ToNumber) -> Value {
+#[cfg(any(feature = "discord", feature = "full"))]
+pub fn from_number(n: impl ToNumber) -> Value {
     n.to_number()
 }
 
-//Allow this as it is used inside the test suite which is "technically" another crate...
-#[allow(dead_code)]
+#[cfg(all(any(feature = "discord", feature = "full"), test))]
 pub fn hashmap_to_json_map<H, T>(map: HashMap<T, Value, H>) -> JsonMap
 where
     H: BuildHasher,

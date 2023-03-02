@@ -15,13 +15,20 @@ use std::sync::Arc;
 
 ///Called when the command is run in a guild.
 pub fn run(options: &CommandInteraction, cache: Arc<Cache>) -> CreateEmbed {
+    let c = &*Arc::try_unwrap(cache.clone()).unwrap_err();
+    trace!("{:?}", c);
     let current_user = (*Arc::try_unwrap(cache).unwrap_err()).current_user();
-    dbg!(options);
+    debug!("{:?}", options);
     let mut embed = DiscordEmbed::new()
         .field("Greetings", "Program".to_string(), true)
         .color(Color::new(0x500060_u32))
+        .thumbnail(
+            "https://cdn.discordapp.com/emojis/938514423155400804.webp?size=48&quality=lossless",
+        )
+        .title("Pong")
         .build();
     embed.author(|a| a.name(current_user.name.to_string()).url(current_user.face()));
+    debug!("{:?}", &embed);
     embed
 }
 

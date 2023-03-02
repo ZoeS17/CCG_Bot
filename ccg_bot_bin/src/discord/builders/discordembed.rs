@@ -8,11 +8,6 @@ use crate::utils::json::{json, Value};
 
 //Serenity imports
 use serenity::builder::CreateEmbed;
-use serenity::builder::CreateEmbedAuthor;
-
-///Tuple struct to contain [`CreateEmbedAuthor`]
-#[derive(Clone, Debug, Default)]
-pub struct DiscordEmbedAuthor(pub CreateEmbedAuthor);
 
 ///Tuple struct to contain [`CreateEmbed`]
 #[derive(Clone, Debug, Default)]
@@ -88,10 +83,10 @@ impl DiscordEmbed {
         self
     }
 
-    /*/// Set the title of the embed.
+    /// Set the title of the embed.
     #[inline]
     pub fn title<D: ToString>(&mut self, title: D) -> &mut Self {
         self.0 .0.insert("title", Value::from(title.to_string()));
         self
-    }*/
+    }
 }

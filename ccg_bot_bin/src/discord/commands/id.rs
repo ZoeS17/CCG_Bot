@@ -46,6 +46,7 @@ pub fn run(options: &CommandInteraction, cache: Arc<Cache>) -> CreateEmbed {
                 .field("roles", roles, false)
                 .thumbnail(user.face())
                 .color(Color::new(0x500060_u32))
+                .title(format!("{}'s info (w/ guild roles)", user.name))
                 .build();
             embed.author(|a| a.name(current_user.name.to_string()).url(current_user.face()));
             debug!("{:?}", &embed);
@@ -58,6 +59,7 @@ pub fn run(options: &CommandInteraction, cache: Arc<Cache>) -> CreateEmbed {
                 .field("mention", format!("<@{}>", user.id), true)
                 .thumbnail(user.face())
                 .color(Color::new(0x500060_u32))
+                .title(format!("{}'s info", user.name))
                 .build();
             embed.author(|a| a.name(current_user.name.to_string()).url(current_user.face()));
             debug!("{:?}", &embed);
