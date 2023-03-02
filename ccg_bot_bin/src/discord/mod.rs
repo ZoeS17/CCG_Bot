@@ -9,6 +9,7 @@ use serenity::async_trait;
 use serenity::model::application::interaction::{Interaction, InteractionResponseType};
 use serenity::model::gateway::Ready;
 use serenity::model::id::GuildId;
+use serenity::model::prelude::application::command::CommandOptionType;
 use serenity::model::prelude::*;
 use serenity::prelude::*;
 
@@ -39,7 +40,18 @@ impl EventHandler for Handler {
             let context = ctx.clone();
             let cache = context.cache;
             trace!("{:?}", &command.data);
-            let opt: CommandInteraction = (*command.data.options.get(0).expect("")).clone().into();
+            //let cmd_opts = ;
+            let opt: CommandInteraction = match command.data.options.get(0) {
+                Some(o) => (*o).clone().into(),
+                None => CommandInteraction {
+                    name: "".to_string(),
+                    value: None,
+                    kind: CommandOptionType::Unknown,
+                    options: vec![],
+                    resolved: None,
+                    focused: false,
+                },
+            };
             debug!("{:?}", &opt);
             let content = match command.data.name.as_str() {
                 "ping" => commands::ping::run(&opt, cache),
