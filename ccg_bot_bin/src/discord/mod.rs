@@ -1,4 +1,4 @@
-//!Discord module go brr!!!
+//!This way be Discord
 
 //crate
 use crate::config::Config;
@@ -95,7 +95,7 @@ impl EventHandler for Handler {
             Some(channel) => channel.name,
             None => return,
         };
-        println!("[{}] {}: {}", channel_name, msg.author.name, msg.content);
+        println!("[Discord / #{}] {}: {}", channel_name, msg.author.name, msg.content);
     }
 }
 
@@ -172,6 +172,10 @@ pub async fn new(config: Config) -> Result<Handler, serenity::Error> {
         discord_token: "".to_string(),
         #[cfg(any(feature = "twitch", feature = "full"))]
         twitch_channels: vec!["".to_string()],
+        #[cfg(any(feature = "twitch", feature = "full"))]
+        twitch_token: "".to_string(),
+        #[cfg(any(feature = "twitch", feature = "full"))]
+        twitch_bot_name: "".to_string(),
     }));
 
     c

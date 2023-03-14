@@ -37,10 +37,16 @@ fn it_works() {
     use super::super::config::Config;
     use super::super::discord::*;
     let dc: Result<Handler, serenity::Error> = aw!(new(Config {
+        #[cfg(any(feature = "discord", feature = "full"))]
         discord_token: "".to_string(),
+        #[cfg(any(feature = "discord", feature = "full"))]
         discord_guildid: "".to_string(),
         #[cfg(feature = "twitch")]
         twitch_channels: vec!["".to_string()],
+        #[cfg(any(feature = "twitch", feature = "full"))]
+        twitch_token: "".to_string(),
+        #[cfg(any(feature = "twitch", feature = "full"))]
+        twitch_bot_name: "".to_string(),
     }));
     let disc_bool: bool = dc.is_ok();
     assert!(disc_bool);
@@ -198,7 +204,7 @@ fn id_command() {
         .field("id", format!("`{}`", user.id), true)
         .field("name", format!("`{}`", user.name), true)
         .field("mention", format!("<@{}>", user.id), true)
-        .field("roles", format!("{}", roles), false)
+        .field("roles", roles.to_string(), false)
         .thumbnail(
             cdn!("/avatars/379001295744532481/072bcea1eedb39786002311d5619a398.webp?size=1024")
                 .to_string(),
@@ -207,8 +213,6 @@ fn id_command() {
         .title(format!("{}'s info (w/ guild roles)", user.name))
         .build();
     embed.author(|a| a.name("".to_string()).url(cdn!("/embed/avatars/0.png").to_string()));
-    dbg!(&run.0);
-    dbg!(&embed.0);
     assert_eq!(Value::from(hashmap_to_json_map(run.0)), Value::from(hashmap_to_json_map(embed.0)));
 }
 
@@ -419,4 +423,11 @@ fn ping_comand() {
     embed.author(|a| a.name("".to_string()).url(cdn!("/embed/avatars/0.png").to_string()));
     //result
     assert_eq!(Value::from(hashmap_to_json_map(run.0)), Value::from(hashmap_to_json_map(embed.0)));
+}
+
+#[test]
+fn hanlder_debug() {
+    use super::super::discord::*;
+    use crate::config::Config;
+    let _ = format!("{:?}", Handler(Config::default()));
 }

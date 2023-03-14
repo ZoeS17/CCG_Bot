@@ -12,5 +12,10 @@ macro_rules! aw {
 
 #[cfg(any(feature = "default", feature = "discord", feature = "full"))]
 mod discord;
-#[cfg(feature = "twitch")]
+#[cfg(any(feature = "default", feature = "twitch", feature = "full"))]
 mod twitch;
+
+#[test]
+fn clippy_dbg() {
+    dbg!("test clippy::dbg_macro lint regression");
+}

@@ -14,6 +14,8 @@ struct ConfigToml {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 struct ConfigTomlTwitch {
     channels: Option<Vec<String>>,
+    token: Option<String>,
+    bot_name: Option<String>,
 }
 
 #[cfg(any(feature = "discord", feature = "full"))]
@@ -23,7 +25,7 @@ struct ConfigTomlDiscord {
     token: Option<String>,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct Config {
     #[cfg(any(feature = "discord", feature = "full"))]
     pub discord_guildid: String,
@@ -31,6 +33,10 @@ pub struct Config {
     pub discord_token: String,
     #[cfg(any(feature = "twitch", feature = "full"))]
     pub twitch_channels: Vec<String>,
+    #[cfg(any(feature = "twitch", feature = "full"))]
+    pub twitch_token: String,
+    #[cfg(any(feature = "twitch", feature = "full"))]
+    pub twitch_bot_name: String,
 }
 
 impl Config {
@@ -47,7 +53,7 @@ impl Config {
             }
         }
         let config_toml: ConfigToml = toml::from_str(&content).unwrap_or_else(|_| {
-            eprintln!("Failed to create ConfigToml object out of config file.");
+            error!("Failed to create ConfigToml object out of config file.");
             ConfigToml {
                 #[cfg(any(feature = "discord", feature = "full"))]
                 discord: None,
@@ -58,7 +64,7 @@ impl Config {
         #[cfg(any(feature = "discord", feature = "full"))]
         let discord_guildid: String = match config_toml.discord.clone() {
             Some(dgid) => dgid.guildid.unwrap_or_else(|| {
-                eprintln!("Missing field `guildid` in table [discord]");
+                error!("Missing field `guildid` in table [discord]");
                 "discord".to_string()
             }),
             None => {
@@ -69,23 +75,45 @@ impl Config {
         #[cfg(any(feature = "discord", feature = "full"))]
         let discord_token: String = match config_toml.discord {
             Some(dt) => dt.token.unwrap_or_else(|| {
-                eprintln!("Missing field `token` in table [discord]");
+                error!("Missing field `token` in table [discord]");
                 "discord".to_string()
             }),
             None => {
-                eprintln!("Missing table `[discord]`.");
+                error!("Missing table `[discord]`.");
                 "discord".to_string()
             },
         };
         #[cfg(any(feature = "twitch", feature = "full"))]
-        let twitch_channels: Vec<String> = match config_toml.twitch {
-            Some(twitch) => twitch.channels.unwrap_or_else(|| {
-                eprintln!("Missing field `channels` in table [twitch]");
+        let twitch_channels: Vec<String> = match config_toml.twitch.clone() {
+            Some(tc) => tc.channels.unwrap_or_else(|| {
+                error!("Missing field `channels` in table [twitch]");
                 vec!["twitch".to_owned()]
             }),
             None => {
-                eprintln!("Missing table `[twitch]`.");
+                error!("Missing table `[twitch]`.");
                 vec!["twitch".to_owned()]
+            },
+        };
+        #[cfg(any(feature = "twitch", feature = "full"))]
+        let twitch_token: String = match config_toml.twitch.clone() {
+            Some(tt) => tt.token.unwrap_or_else(|| {
+                error!("Missing field `token` in table [twitch]");
+                "twitch".to_string()
+            }),
+            None => {
+                error!("Missing table `[twitch]`.");
+                "twitch".to_string()
+            },
+        };
+        #[cfg(any(feature = "twitch", feature = "full"))]
+        let twitch_bot_name: String = match config_toml.twitch {
+            Some(tbn) => tbn.bot_name.unwrap_or_else(|| {
+                error!("Missing field `bot_name` in table [twitch]");
+                "twitch".to_string()
+            }),
+            None => {
+                error!("Missing table `[twitch]`.");
+                "twitch".to_string()
             },
         };
         Config {
@@ -95,6 +123,10 @@ impl Config {
             discord_token,
             #[cfg(any(feature = "twitch", feature = "full"))]
             twitch_channels,
+            #[cfg(any(feature = "twitch", feature = "full"))]
+            twitch_token,
+            #[cfg(any(feature = "twitch", feature = "full"))]
+            twitch_bot_name,
         }
     }
 }

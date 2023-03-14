@@ -1,7 +1,8 @@
+#![deny(clippy::dbg_macro)]
+#![deny(clippy::missing_safety_doc)]
 #![deny(rustdoc::broken_intra_doc_links)]
-#![deny(rustdoc::missing_safety_doc)]
-#![warn(rustdoc::missing_crate_level_docs)]
 #![warn(missing_docs)]
+#![warn(rustdoc::missing_crate_level_docs)]
 //Crate doc
 #![doc = include_str!("../../README.md")]
 
@@ -9,6 +10,7 @@
 extern crate tracing;
 
 //crate
+//use ccg_bot_sys;
 use config::Config;
 
 // serde
@@ -29,6 +31,7 @@ mod config;
 mod discord;
 #[macro_use]
 mod internals;
+
 #[cfg(any(feature = "twitch", feature = "full"))]
 mod twitch;
 mod utils;
@@ -131,11 +134,13 @@ async fn main() -> StdResult<(), Box<dyn StdError + Send + Sync>> {
         env::set_var("RUST_LOG", "warn,CCG_Bot=warn,meio=error");
     }
     tracing_subscriber::fmt::init();
-
+    #[cfg(any(feature = "discord", feature = "twitch", feature = "full"))]
     let config: Config = Config::new();
     #[cfg(any(feature = "discord", feature = "full"))]
-    let discord_handle = discord::new(config).await;
-    #[cfg(any(feature = "discord", feature = "full"))]
-    dbg!(discord_handle?);
+    let discord_handle = tokio::spawn(discord::new(config.clone()));
+    #[cfg(any(feature = "twitch", feature = "full"))]
+    let twitch_handle = tokio::spawn(twitch::new(config));
+    #[cfg(any(feature = "full", all(feature = "twitch", feature = "discord")))]
+    let (_first, _second) = tokio::join!(discord_handle, twitch_handle);
     Ok(())
 }

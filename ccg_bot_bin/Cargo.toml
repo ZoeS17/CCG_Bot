@@ -10,11 +10,11 @@ version = "0.0.1"
 edition = "2021"
 include = ["LICENSE.md", "README.md"]
 publish = false
-rust-version = "1.63"
+rust-version = "1.65"
 
 [dependencies]
 async-trait = "0.1"
-#ccg_bot_sys = { version = "0.1.0", path = "../ccg_bot_sys"}# reserve for if proc_macros are needed
+ccg_bot_sys = { version = "0.1.0", path = "../ccg_bot_sys"}
 governor = "0.5"
 lazy_static = "1.4"
 nom = "7.0"
@@ -45,7 +45,7 @@ features = ["full"]
 
 [dependencies.twitch-irc]
 version = "5.0"
-features = ["__refreshing-token", "async-tungstenite", "bytes", "metrics-collection", "prometheus", "refreshing-token-rustls-webpki-roots", "reqwest", "serde", "tokio-native-tls", "tokio-stream", "tokio-util", "transport-tcp", "transport-tcp-native-tls", "transport-ws", "transport-ws-rustls-webpki-roots", "with-serde"]
+features = ["__refreshing-token", "async-tungstenite", "bytes", "prometheus", "refreshing-token-rustls-webpki-roots", "reqwest", "serde", "tokio-native-tls", "tokio-stream", "tokio-util", "transport-tcp", "transport-tcp-native-tls", "transport-ws", "transport-ws-rustls-webpki-roots", "with-serde"]
 optional = true
 
 [dev-dependencies]
@@ -54,7 +54,7 @@ dashmap = { version = "5.1.0", features = ["serde"]}
 tokio-test = "*"
 
 [features]
-default = ["discord"]
+default = ["discord", "twitch"]
 discord = ["serenity"]
 full = ["discord", "twitch"]
 twitch = ["twitch-irc"]

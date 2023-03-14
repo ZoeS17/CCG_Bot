@@ -24,50 +24,49 @@ pub fn run(options: &CommandInteraction, cache: Arc<Cache>) -> CreateEmbed {
     let current_user = (*Arc::try_unwrap(cache).unwrap_err()).current_user();
     let option = options.resolved.as_ref().expect("Expected user object");
 
-    if let CommandInteractionResolved::User(user, member) = option {
-        let mut mem: PartialMember;
-        if member.is_some() {
-            mem = member.clone().unwrap();
-            //This is cursed. There has to be a better way.
-            let mut roles = format!(
-                "{:?}",
-                mem.roles
-                    .drain(..)
-                    .map(|r| format!("{}", r.to_role_cached(c).unwrap()))
-                    .collect::<Vec<_>>()
-            );
-            roles.retain(|c| c != '[');
-            roles.retain(|c| c != ']');
-            roles.retain(|c| c != '"');
-            let mut embed = DiscordEmbed::new()
-                .field("id", format!("`{}`", user.id), true)
-                .field("name", format!("`{}`", user.name), true)
-                .field("mention", format!("<@{}>", user.id), true)
-                .field("roles", roles, false)
-                .thumbnail(user.face())
-                .color(Color::new(0x500060_u32))
-                .title(format!("{}'s info (w/ guild roles)", user.name))
-                .build();
-            embed.author(|a| a.name(current_user.name.to_string()).url(current_user.face()));
-            debug!("{:?}", &embed);
-            debug!("{:?}", &mem);
-            embed
-        } else {
-            let mut embed = DiscordEmbed::new()
-                .field("id", format!("`{}`", user.id), true)
-                .field("name", format!("`{}`", user.name), true)
-                .field("mention", format!("<@{}>", user.id), true)
-                .thumbnail(user.face())
-                .color(Color::new(0x500060_u32))
-                .title(format!("{}'s info", user.name))
-                .build();
-            embed.author(|a| a.name(current_user.name.to_string()).url(current_user.face()));
-            debug!("{:?}", &embed);
-            embed
-        }
+    let res: CreateEmbed;
+    let CommandInteractionResolved::User(user, member) = option else { panic!("unexpected type in resolved")};
+    let mut mem: PartialMember;
+    if member.is_some() {
+        mem = member.clone().unwrap();
+        //This is cursed. There has to be a better way.
+        let mut roles = format!(
+            "{:?}",
+            mem.roles
+                .drain(..)
+                .map(|r| format!("{}", r.to_role_cached(c).unwrap()))
+                .collect::<Vec<_>>()
+        );
+        roles.retain(|c| c != '[');
+        roles.retain(|c| c != ']');
+        roles.retain(|c| c != '"');
+        let mut embed = DiscordEmbed::new()
+            .field("id", format!("`{}`", user.id), true)
+            .field("name", format!("`{}`", user.name), true)
+            .field("mention", format!("<@{}>", user.id), true)
+            .field("roles", roles, false)
+            .thumbnail(user.face())
+            .color(Color::new(0x500060_u32))
+            .title(format!("{}'s info (w/ guild roles)", user.name))
+            .build();
+        embed.author(|a| a.name(current_user.name.to_string()).url(current_user.face()));
+        debug!("{:?}", &embed);
+        debug!("{:?}", &mem);
+        res = embed;
     } else {
-        unreachable!();
+        let mut embed = DiscordEmbed::new()
+            .field("id", format!("`{}`", user.id), true)
+            .field("name", format!("`{}`", user.name), true)
+            .field("mention", format!("<@{}>", user.id), true)
+            .thumbnail(user.face())
+            .color(Color::new(0x500060_u32))
+            .title(format!("{}'s info", user.name))
+            .build();
+        embed.author(|a| a.name(current_user.name.to_string()).url(current_user.face()));
+        debug!("{:?}", &embed);
+        res = embed;
     }
+    res
 }
 
 ///Register the command to be used in the guild.

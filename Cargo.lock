@@ -135,6 +135,7 @@ version = "0.0.1"
 dependencies = [
  "async-trait",
  "bitflags 2.0.0",
+ "ccg_bot_sys",
  "dashmap",
  "governor",
  "lazy_static",
@@ -153,6 +154,14 @@ dependencies = [
  "tracing-log",
  "tracing-subscriber",
  "twitch-irc",
+]
+
+[[package]]
+name = "ccg_bot_sys"
+version = "0.1.0"
+dependencies = [
+ "quote",
+ "syn",
 ]
 
 [[package]]

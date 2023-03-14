@@ -1,6 +1,5 @@
 [workspace]
-#members = ["ccg_bot_bin", "ccg_bot_sys"] #renable as, and when, the ccg_bot_sys crate is needed
-members = ["ccg_bot_bin"]
+members = ["ccg_bot_bin", "ccg_bot_sys"]
 
 [profile.dev]
 opt-level = 3

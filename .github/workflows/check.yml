@@ -83,14 +83,14 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: hack
-          args: --feature-powerset check --bin ccg_bot --tests
+          args: --feature-powerset check --tests --workspace
   msrv:
     runs-on: ubuntu-latest
     # we use a matrix here just because env can't be used in job names
     # https://docs.github.com/en/actions/learn-github-actions/contexts#context-availability
     strategy:
       matrix:
-        msrv: [1.63.0] # time v0.3.20
+        msrv: [1.65.0] # let else (discord/id.rs)
     name: ubuntu / ${{ matrix.msrv }}
     steps:
       - uses: actions/checkout@v3
