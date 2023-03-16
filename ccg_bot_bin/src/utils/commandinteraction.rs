@@ -146,3 +146,47 @@ impl From<CommandDataOption> for CommandInteraction {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::tests;
+
+    use super::*;
+    use serenity::model::prelude::command::CommandType;
+    #[test]
+    fn derives_on_localcommandtype() {
+        use std::hash::Hash;
+        let upstream = LocalCommandType::ChatInput;
+        let copy = upstream;
+        let clone = LocalCommandType::ChatInput.clone();
+        assert_eq!(copy, clone);
+        assert!(upstream < LocalCommandType::User);
+        let _ = upstream.hash(&mut std::collections::hash_map::DefaultHasher::new());
+    }
+
+    #[test]
+    fn impl_from_commandtype_for_localcommandtype() {
+        let upstream: CommandType = CommandType::User;
+        let _: LocalCommandType = LocalCommandType::from(upstream);
+    }
+
+    #[test]
+    fn derives_on_commandinteractionresolved() {
+        use std::hash::Hash;
+        let upstream = LocalCommandType::ChatInput;
+        let copy = upstream;
+        let clone = LocalCommandType::ChatInput.clone();
+        assert_eq!(copy, clone);
+        assert!(upstream < LocalCommandType::User);
+        let _ = upstream.hash(&mut std::collections::hash_map::DefaultHasher::new());
+    }
+
+    #[test]
+    fn impl_from_commanddataoptionvalue_for_commandinteractionresolved() {
+        use crate::tests::discord::TestUser;
+        use serenity::model::user::User;
+        let user = from_str::<User>(&to_string(&TestUser::default()).unwrap()).unwrap();
+        let upstream: CommandDataOptionValue = CommandDataOptionValue::User(user, None);
+        let _: CommandInteractionResolved = CommandInteractionResolved::from(upstream);
+    }
+}

@@ -11,9 +11,9 @@ macro_rules! aw {
 }
 
 #[cfg(any(feature = "default", feature = "discord", feature = "full"))]
-mod discord;
+pub mod discord;
 #[cfg(any(feature = "default", feature = "twitch", feature = "full"))]
-mod twitch;
+pub mod twitch;
 
 #[test]
 fn clippy_dbg() {
