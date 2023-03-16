@@ -175,10 +175,15 @@ mod tests {
     #[test]
     fn debug_handler() {
         let handle = Handler(Config {
+            #[cfg(any(feature = "discord", feature = "full"))]
             discord_token: "".to_string(),
+            #[cfg(any(feature = "discord", feature = "full"))]
             discord_guildid: "".to_string(),
+            #[cfg(any(feature = "twitch", feature = "full"))]
             twitch_channels: vec![],
+            #[cfg(any(feature = "twitch", feature = "full"))]
             twitch_token: "".to_string(),
+            #[cfg(any(feature = "twitch", feature = "full"))]
             twitch_bot_name: "".to_string(),
         });
         let _ = format!("{:?}", handle);
