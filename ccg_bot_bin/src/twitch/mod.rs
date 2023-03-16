@@ -147,3 +147,45 @@ pub async fn new(config: Config) -> Result<Handler, std::env::VarError> {
     join_handle.await.unwrap();
     Ok(Handler(config))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_message() {
+        super::parse_message("info", "Test info");
+        super::parse_message("trace", "Test trace");
+    }
+
+    #[test]
+    #[should_panic]
+    fn parse_message_bogus() {
+        super::parse_message("foo", "bar");
+    }
+
+    #[test]
+    fn fmt_twitch_err_var_error() {
+        let var_error = std::env::VarError::NotPresent;
+        let e: TwitchErr = Into::<TwitchErr>::into(var_error);
+        let _ = format!("{:?}", &e);
+        let _ = format!("{}", e);
+    }
+
+    #[test]
+    fn debug_handler() {
+        let handle = Handler(Config {
+            #[cfg(any(feature = "discord", feature = "full"))]
+            discord_token: "".to_string(),
+            #[cfg(any(feature = "discord", feature = "full"))]
+            discord_guildid: "".to_string(),
+            #[cfg(any(feature = "twitch", feature = "full"))]
+            twitch_channels: vec![],
+            #[cfg(any(feature = "twitch", feature = "full"))]
+            twitch_token: "".to_string(),
+            #[cfg(any(feature = "twitch", feature = "full"))]
+            twitch_bot_name: "".to_string(),
+        });
+        let _ = format!("{:?}", handle);
+    }
+}
