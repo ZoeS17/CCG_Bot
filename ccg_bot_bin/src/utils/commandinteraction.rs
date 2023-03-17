@@ -149,13 +149,19 @@ impl From<CommandDataOption> for CommandInteraction {
 
 #[cfg(test)]
 mod tests {
-    use crate::tests;
-
+    use crate::tests::discord::TestUser;
+    use serenity::model::prelude::command::{CommandOptionType, CommandType};
+    use serenity::model::user::User;
+    /*use serenity::model::{
+        channel::{Attachment, PartialChannel},
+        guild::Role,
+        user::User,
+    };*/
     use super::*;
-    use serenity::model::prelude::command::CommandType;
+    use std::hash::Hash;
+
     #[test]
     fn derives_on_localcommandtype() {
-        use std::hash::Hash;
         let upstream = LocalCommandType::ChatInput;
         let copy = upstream;
         let clone = LocalCommandType::ChatInput.clone();
@@ -172,21 +178,75 @@ mod tests {
 
     #[test]
     fn derives_on_commandinteractionresolved() {
-        use std::hash::Hash;
-        let upstream = LocalCommandType::ChatInput;
-        let copy = upstream;
-        let clone = LocalCommandType::ChatInput.clone();
-        assert_eq!(copy, clone);
-        assert!(upstream < LocalCommandType::User);
-        let _ = upstream.hash(&mut std::collections::hash_map::DefaultHasher::new());
+        let cir = CommandInteractionResolved::String("Test".to_string());
+        let _ = CommandInteractionResolved::String("Test".to_string()).clone(); //derive(Clone)
+        let _ = format!("{:?}", cir); //derive(Debug)
+        let _ = serde_json::to_string(&cir); //derive(Serialize)
     }
 
     #[test]
     fn impl_from_commanddataoptionvalue_for_commandinteractionresolved() {
-        use crate::tests::discord::TestUser;
-        use serenity::model::user::User;
         let user = from_str::<User>(&to_string(&TestUser::default()).unwrap()).unwrap();
-        let upstream: CommandDataOptionValue = CommandDataOptionValue::User(user, None);
-        let _: CommandInteractionResolved = CommandInteractionResolved::from(upstream);
+        let upstream_user: CommandDataOptionValue = CommandDataOptionValue::User(user, None);
+        let upstream_string: CommandDataOptionValue =
+            CommandDataOptionValue::String("Test".to_string());
+        let upstream_int: CommandDataOptionValue = CommandDataOptionValue::Integer(1_i64);
+        let upstream_bool: CommandDataOptionValue = CommandDataOptionValue::Boolean(false);
+        let upstream_num: CommandDataOptionValue = CommandDataOptionValue::Number(1.0_f64);
+        let _: CommandInteractionResolved = CommandInteractionResolved::from(upstream_user);
+        let _: CommandInteractionResolved = CommandInteractionResolved::from(upstream_string);
+        let _: CommandInteractionResolved = CommandInteractionResolved::from(upstream_int);
+        let _: CommandInteractionResolved = CommandInteractionResolved::from(upstream_bool);
+        let _: CommandInteractionResolved = CommandInteractionResolved::from(upstream_num);
+        //FIXME: test Channel(PartialChanel), Role(r), and Attachment(a) variants of
+        //       CommandInteractionValue
+    }
+
+    #[test]
+    fn derives_on_commandinteraction() {
+        let test_resolved =
+            CommandInteractionResolved::from(CommandDataOptionValue::String("Test".to_string()));
+        let test_interaction: CommandInteraction = CommandInteraction {
+            name: "".to_string(),
+            value: None,
+            kind: CommandOptionType::String,
+            options: vec![],
+            resolved: Some(test_resolved),
+            focused: false,
+        };
+        let _ = test_interaction.clone(); //derive(Clone)
+        let ti_string = serde_json::to_string(&test_interaction); //derive(Serialize)
+        let _ = serde_json::from_str::<CommandInteraction>(&ti_string.unwrap()); //impl Deserialize
+        let _ = format!("{:?}", test_interaction); //derive(Debug)
+    }
+
+    #[test]
+    fn impl_from_commanddataoption_for_commandinteraction() {
+        let test_ci = CommandInteraction {
+            name: "".to_string(),
+            value: None,
+            kind: CommandOptionType::String,
+            options: vec![],
+            resolved: None,
+            focused: false,
+        };
+        let test_cdo: CommandDataOption =
+            serde_json::from_str::<CommandDataOption>(&serde_json::to_string(&test_ci).unwrap())
+                .unwrap();
+        let _: CommandInteraction = CommandInteraction::from(test_cdo);
+    }
+
+    #[test]
+    fn enum_number_macro() {
+        let mesg_num = LocalCommandType::Message.num();
+        let user_num = LocalCommandType::User.num();
+        let chat_num = LocalCommandType::ChatInput.num();
+        assert_eq!(mesg_num, 3_u64);
+        assert_eq!(user_num, 2_u64);
+        assert_eq!(chat_num, 1_u64);
+        let msg = serde_json::to_string(&LocalCommandType::Message).unwrap();
+        assert_eq!(msg, "3".to_string());
+        let lct = serde_json::from_str::<LocalCommandType>(&msg).unwrap();
+        assert_eq!(lct, LocalCommandType::Message);
     }
 }
