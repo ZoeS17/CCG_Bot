@@ -11,7 +11,7 @@ publish = false
 quote = "1"
 
 [dependencies.syn]
-version = "1"
+version = "2"
 features = ["derive", "full"]
 
 [lib]
