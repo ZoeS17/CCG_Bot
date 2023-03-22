@@ -70,7 +70,7 @@ impl PartialEq for User {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct TestUser {
     pub id: UserId,
     pub avatar: Option<String>,
@@ -83,24 +83,6 @@ pub struct TestUser {
     pub banner: Option<String>,
     #[serde(rename = "accent_color")]
     pub accent_colour: Option<Color>,
-}
-
-impl Default for TestUser {
-    fn default() -> Self {
-        TestUser {
-            id: UserId(379001295744532481),
-            avatar: Some("072bcea1eedb39786002311d5619a398".to_string()),
-            bot: false,
-            discriminator: 6349,
-            name: "Courtesy Call Bot".to_string(),
-            accent_colour: Some(Color::new(0x500060_u32)),
-            public_flags: Some(UserPublicFlags::default()),
-            banner: Some(
-                cdn!("/avatars/379001295744532481/072bcea1eedb39786002311d5619a398.webp?size=1024")
-                    .to_string(),
-            ),
-        }
-    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -205,10 +187,7 @@ fn id_command() {
         .field("name", format!("`{}`", user.name), true)
         .field("mention", format!("<@{}>", user.id), true)
         .field("roles", roles.to_string(), false)
-        .thumbnail(
-            cdn!("/avatars/379001295744532481/072bcea1eedb39786002311d5619a398.webp?size=1024")
-                .to_string(),
-        )
+        .thumbnail(cdn!("/embed/avatars/0.png").to_string())
         .color(Color::new(0x500060_u32))
         .title(format!("{}'s info (w/ guild roles)", user.name))
         .build();
@@ -235,19 +214,12 @@ fn id_command_no_member() {
     let options = test_ci;
     let c = Arc::new(cache);
     let run = id::run(&options, c);
-    let user = User {
-        id: 379001295744532481,
-        name: "Courtesy Call Bot".to_string(),
-        avatar: "072bcea1eedb39786002311d5619a398".to_string(),
-    };
+    let user = User { id: 0, name: "".to_string(), avatar: "0".to_string() };
     let mut embed = DiscordEmbed::new()
         .field("id", format!("`{}`", user.id), true)
         .field("name", format!("`{}`", user.name), true)
         .field("mention", format!("<@{}>", user.id), true)
-        .thumbnail(
-            cdn!("/avatars/379001295744532481/072bcea1eedb39786002311d5619a398.webp?size=1024")
-                .to_string(),
-        )
+        .thumbnail(cdn!("/embed/avatars/0.png").to_string())
         .color(Color::new(0x500060_u32))
         .title(format!("{}'s info", user.name))
         .build();

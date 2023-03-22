@@ -14,11 +14,14 @@ use serenity::json::JsonMap;
 use serenity::model::prelude::command::CommandOptionType;
 use serenity::model::{
     application::interaction::application_command::{CommandDataOption, CommandDataOptionValue},
-    channel::{Attachment, PartialChannel},
-    guild::{PartialMember, Role},
+    channel::ChannelType,
+    channel::{Attachment as SerenityAttachment, PartialChannel as SerenityPartialChannel},
+    guild::{PartialMember, Role as SerenityRole, RoleTags as SerenityRoleTags},
     prelude::command::CommandType,
     user::User,
+    Permissions,
 };
+use serenity::utils::Color;
 
 ///Reimplimentation of Serenity's [CommandType] as it was non_exhaustive
 #[derive(Copy, Clone, Debug, Hash, Eq, PartialEq, PartialOrd, Ord)]
@@ -64,10 +67,12 @@ impl From<CommandDataOptionValue> for CommandInteractionResolved {
             CommandDataOptionValue::Integer(i) => CommandInteractionResolved::Integer(i),
             CommandDataOptionValue::Boolean(b) => CommandInteractionResolved::Boolean(b),
             CommandDataOptionValue::User(u, pm) => CommandInteractionResolved::User(u, pm),
-            CommandDataOptionValue::Channel(pc) => CommandInteractionResolved::Channel(pc),
-            CommandDataOptionValue::Role(r) => CommandInteractionResolved::Role(r),
+            CommandDataOptionValue::Channel(pc) => CommandInteractionResolved::Channel(pc.into()),
+            CommandDataOptionValue::Role(r) => CommandInteractionResolved::Role(r.into()),
             CommandDataOptionValue::Number(f) => CommandInteractionResolved::Number(f),
-            CommandDataOptionValue::Attachment(a) => CommandInteractionResolved::Attachment(a),
+            CommandDataOptionValue::Attachment(a) => {
+                CommandInteractionResolved::Attachment(a.into())
+            },
             _ => unimplemented!(),
         }
     }
@@ -147,18 +152,252 @@ impl From<CommandDataOption> for CommandInteraction {
     }
 }
 
+#[allow(clippy::trivially_copy_pass_by_ref)]
+pub fn is_false(v: &bool) -> bool {
+    !v
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[cfg_attr(test, derive(PartialEq, Eq))]
+pub struct Attachment {
+    pub id: serenity::model::id::AttachmentId,
+    pub filename: String,
+    pub height: Option<u64>,
+    pub proxy_url: String,
+    pub size: u64,
+    pub url: String,
+    pub width: Option<u64>,
+    pub content_type: Option<String>,
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub ephemeral: bool,
+}
+
+impl From<SerenityAttachment> for Attachment {
+    fn from(value: SerenityAttachment) -> Self {
+        Self {
+            id: value.id,
+            filename: value.filename,
+            height: value.height,
+            proxy_url: value.proxy_url,
+            size: value.size,
+            url: value.url,
+            width: value.width,
+            content_type: value.content_type,
+            ephemeral: value.ephemeral,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[cfg_attr(test, derive(PartialEq, Eq))]
+pub struct Role {
+    pub id: serenity::model::id::RoleId,
+    pub guild_id: serenity::model::id::GuildId,
+    #[serde(rename = "color")]
+    pub colour: Color,
+    pub hoist: bool,
+    pub managed: bool,
+    #[serde(default)]
+    pub mentionable: bool,
+    pub name: String,
+    #[serde(default)]
+    pub permissions: Permissions,
+    pub position: i64,
+    #[serde(default)]
+    pub tags: RoleTags,
+    pub icon: Option<String>,
+    pub unicode_emoji: Option<String>,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[cfg_attr(test, derive(PartialEq, Eq))]
+pub struct RoleTags {
+    pub bot_id: Option<serenity::model::id::UserId>,
+    pub integration_id: Option<serenity::model::id::IntegrationId>,
+    #[serde(default, skip_serializing_if = "is_false", with = "premium_subscriber")]
+    pub premium_subscriber: bool,
+}
+
+impl From<SerenityRoleTags> for RoleTags {
+    fn from(value: SerenityRoleTags) -> Self {
+        Self {
+            bot_id: value.bot_id,
+            integration_id: value.integration_id,
+            premium_subscriber: value.premium_subscriber,
+        }
+    }
+}
+
+// A premium subscriber role is reported with the field present and the value `null`.
+mod premium_subscriber {
+    use std::fmt;
+
+    use serde::de::{Error, Visitor};
+    use serde::{Deserializer, Serializer};
+
+    pub fn deserialize<'de, D: Deserializer<'de>>(deserializer: D) -> Result<bool, D::Error> {
+        deserializer.deserialize_option(NullValueVisitor)
+    }
+
+    #[allow(clippy::trivially_copy_pass_by_ref)]
+    pub fn serialize<S: Serializer>(_: &bool, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_none()
+    }
+
+    struct NullValueVisitor;
+
+    impl<'de> Visitor<'de> for NullValueVisitor {
+        type Value = bool;
+
+        fn expecting(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            f.write_str("null value")
+        }
+
+        fn visit_none<E: Error>(self) -> Result<Self::Value, E> {
+            Ok(true)
+        }
+
+        /// Called by the `simd_json` crate
+        fn visit_unit<E: Error>(self) -> Result<Self::Value, E> {
+            Ok(true)
+        }
+    }
+}
+
+impl From<SerenityRole> for Role {
+    fn from(r: SerenityRole) -> Self {
+        Self {
+            id: r.id,
+            guild_id: r.guild_id,
+            colour: r.colour,
+            hoist: r.hoist,
+            managed: r.managed,
+            mentionable: r.mentionable,
+            name: r.name,
+            permissions: r.permissions,
+            position: r.position,
+            tags: r.tags.into(),
+            icon: None,
+            unicode_emoji: None,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[cfg_attr(test, derive(PartialEq, Eq))]
+pub struct PartialChannel {
+    pub id: serenity::model::id::ChannelId,
+    pub name: Option<String>,
+    #[serde(rename = "type")]
+    pub kind: ChannelType,
+    pub permissions: Option<Permissions>,
+}
+
+impl Default for PartialChannel {
+    fn default() -> Self {
+        Self {
+            id: serenity::model::id::ChannelId::default(),
+            name: Some(String::default()),
+            kind: ChannelType::Unknown,
+            permissions: Some(Permissions::default()),
+        }
+    }
+}
+
+impl From<SerenityPartialChannel> for PartialChannel {
+    fn from(value: SerenityPartialChannel) -> Self {
+        Self { id: value.id, name: value.name, kind: value.kind, permissions: value.permissions }
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    use super::*;
     use crate::tests::discord::TestUser;
     use serenity::model::prelude::command::{CommandOptionType, CommandType};
-    use serenity::model::user::User;
-    /*use serenity::model::{
-        channel::{Attachment, PartialChannel},
-        guild::Role,
+    use serenity::model::{
+        channel::{Attachment as SerenityAttachment, PartialChannel as SerenityPartialChannel},
+        guild::Role as SerenityRole,
         user::User,
-    };*/
-    use super::*;
+    };
     use std::hash::Hash;
+
+    #[test]
+    fn derives_on_attachment() {
+        let test_attach = Attachment::default(); // derive(Default)
+        let _ = format!("{:?}", test_attach); // derive(Debug)
+        let _ = test_attach.clone(); // derive(Clone)
+        let test_attch_str = to_string(&test_attach).unwrap(); // derive(Serialize)
+        let derived_attach = from_str::<Attachment>(&test_attch_str).unwrap(); // derive(Deserialize)
+        assert_eq!(test_attach, derived_attach);
+    }
+
+    #[test]
+    fn impl_from_serenityattachment_for_attachment() {
+        let test_attach = Attachment::default();
+        let test_attach_str = to_string(&test_attach).unwrap();
+        let upstream_attach = from_str::<SerenityAttachment>(&test_attach_str).unwrap();
+        let roundtrip = Attachment::from(upstream_attach);
+        assert_eq!(test_attach, roundtrip);
+    }
+
+    #[test]
+    fn derives_on_partial_channel() {
+        let test_part_chan = PartialChannel::default(); //impl Default
+        let _ = format!("{:?}", test_part_chan); // derive(Debug)
+        let _ = test_part_chan.clone(); // derive(Clone)
+        let test_pc_str = to_string(&test_part_chan).unwrap(); // derive(Serialize)
+        let derived_pc = from_str::<PartialChannel>(&test_pc_str).unwrap(); // derive(Deserialize)
+        assert_eq!(test_part_chan, derived_pc);
+    }
+
+    #[test]
+    fn impl_from_serenitypartialchannel_for_partial_channel() {
+        let test_partial_channel = PartialChannel::default();
+        let test_partial_channel_str = to_string(&test_partial_channel).unwrap();
+        let upstream_partial_channel =
+            from_str::<SerenityPartialChannel>(&test_partial_channel_str).unwrap();
+        let roundtrip = PartialChannel::from(upstream_partial_channel);
+        assert_eq!(test_partial_channel, roundtrip);
+    }
+
+    #[test]
+    fn derives_on_role() {
+        let test_role = Role::default(); // derive(Default)
+        let _ = format!("{:?}", test_role); // derive(Debug)
+        let _ = test_role.clone(); // derive(Clone)
+        let test_role_str = to_string(&test_role).unwrap(); // derive(Serialize)
+        let derived_role = from_str::<Role>(&test_role_str).unwrap(); // derive(Deserialize)
+        assert_eq!(test_role, derived_role);
+    }
+
+    #[test]
+    fn impl_from_serenityrole_for_role() {
+        let test_role = Role::default();
+        let test_role_str = to_string(&test_role).unwrap();
+        let upstream_role = from_str::<SerenityRole>(&test_role_str).unwrap();
+        let roundtrip = Role::from(upstream_role);
+        assert_eq!(test_role, roundtrip);
+    }
+
+    #[test]
+    fn derives_on_roletags() {
+        let test_role_tags = RoleTags::default(); // derive(Default)
+        let _ = format!("{:?}", test_role_tags); // derive(Debug)
+        let _ = test_role_tags.clone(); // derive(Clone)
+        let test_roletags_str = to_string(&test_role_tags).unwrap(); // derive(Serialize)
+        let derived_role_tags = from_str::<RoleTags>(&test_roletags_str).unwrap(); // derive(Deserialize)
+        assert_eq!(test_role_tags, derived_role_tags);
+    }
+
+    #[test]
+    fn impl_from_serenityroletags_for_roletags() {
+        let test_role_tags = RoleTags::default();
+        let test_roletags_str = to_string(&test_role_tags).unwrap();
+        let upstream_roletags = from_str::<SerenityRoleTags>(&test_roletags_str).unwrap();
+        let roundtrip = RoleTags::from(upstream_roletags);
+        assert_eq!(test_role_tags, roundtrip);
+    }
 
     #[test]
     fn derives_on_localcommandtype() {
@@ -167,12 +406,18 @@ mod tests {
         let clone = LocalCommandType::ChatInput.clone();
         assert_eq!(copy, clone);
         assert!(upstream < LocalCommandType::User);
-        let _ = upstream.hash(&mut std::collections::hash_map::DefaultHasher::new());
+        upstream.hash(&mut std::collections::hash_map::DefaultHasher::new());
     }
 
     #[test]
     fn impl_from_commandtype_for_localcommandtype() {
         let upstream: CommandType = CommandType::User;
+        let _: LocalCommandType = LocalCommandType::from(upstream);
+        let upstream: CommandType = CommandType::Message;
+        let _: LocalCommandType = LocalCommandType::from(upstream);
+        let upstream: CommandType = CommandType::ChatInput;
+        let _: LocalCommandType = LocalCommandType::from(upstream);
+        let upstream: CommandType = CommandType::Unknown;
         let _: LocalCommandType = LocalCommandType::from(upstream);
     }
 
@@ -187,19 +432,29 @@ mod tests {
     #[test]
     fn impl_from_commanddataoptionvalue_for_commandinteractionresolved() {
         let user = from_str::<User>(&to_string(&TestUser::default()).unwrap()).unwrap();
+        let attach =
+            from_str::<SerenityAttachment>(&to_string(&Attachment::default()).unwrap()).unwrap();
+        let chan =
+            from_str::<SerenityPartialChannel>(&to_string(&PartialChannel::default()).unwrap())
+                .unwrap();
+        let role = from_str::<SerenityRole>(&to_string(&Role::default()).unwrap()).unwrap();
         let upstream_user: CommandDataOptionValue = CommandDataOptionValue::User(user, None);
         let upstream_string: CommandDataOptionValue =
             CommandDataOptionValue::String("Test".to_string());
         let upstream_int: CommandDataOptionValue = CommandDataOptionValue::Integer(1_i64);
         let upstream_bool: CommandDataOptionValue = CommandDataOptionValue::Boolean(false);
         let upstream_num: CommandDataOptionValue = CommandDataOptionValue::Number(1.0_f64);
+        let upstream_pc: CommandDataOptionValue = CommandDataOptionValue::Channel(chan);
+        let upstream_attach: CommandDataOptionValue = CommandDataOptionValue::Attachment(attach);
+        let upstream_role: CommandDataOptionValue = CommandDataOptionValue::Role(role);
         let _: CommandInteractionResolved = CommandInteractionResolved::from(upstream_user);
         let _: CommandInteractionResolved = CommandInteractionResolved::from(upstream_string);
         let _: CommandInteractionResolved = CommandInteractionResolved::from(upstream_int);
         let _: CommandInteractionResolved = CommandInteractionResolved::from(upstream_bool);
         let _: CommandInteractionResolved = CommandInteractionResolved::from(upstream_num);
-        //FIXME: test Channel(PartialChanel), Role(r), and Attachment(a) variants of
-        //       CommandInteractionValue
+        let _: CommandInteractionResolved = CommandInteractionResolved::from(upstream_pc);
+        let _: CommandInteractionResolved = CommandInteractionResolved::from(upstream_attach);
+        let _: CommandInteractionResolved = CommandInteractionResolved::from(upstream_role);
     }
 
     #[test]
