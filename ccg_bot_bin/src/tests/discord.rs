@@ -52,7 +52,7 @@ fn it_works() {
     assert!(disc_bool);
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct User {
     id: u64,
     name: String,

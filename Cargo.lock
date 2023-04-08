@@ -137,6 +137,7 @@ dependencies = [
  "bitflags 2.0.0",
  "ccg_bot_sys",
  "dashmap",
+ "futures",
  "governor",
  "lazy_static",
  "nom",
@@ -154,6 +155,7 @@ dependencies = [
  "tracing-log",
  "tracing-subscriber",
  "twitch-irc",
+ "typemap_rev",
 ]
 
 [[package]]
