@@ -314,11 +314,10 @@ impl From<SerenityPartialChannel> for PartialChannel {
 mod tests {
     use super::*;
     use crate::tests::discord::TestUser;
-    use serenity::model::prelude::command::{CommandOptionType, CommandType};
+    use serenity::model::prelude::command::CommandOptionType;
     use serenity::model::{
         channel::{Attachment as SerenityAttachment, PartialChannel as SerenityPartialChannel},
         guild::Role as SerenityRole,
-        user::User,
     };
     use std::hash::Hash;
 
@@ -402,11 +401,12 @@ mod tests {
     #[test]
     fn derives_on_localcommandtype() {
         let upstream = LocalCommandType::ChatInput;
-        let copy = upstream;
-        let clone = LocalCommandType::ChatInput.clone();
+        let copy = upstream; // derive(Copy)
+        let clone = LocalCommandType::ChatInput.clone(); // derive(Clone)
         assert_eq!(copy, clone);
-        assert!(upstream < LocalCommandType::User);
-        upstream.hash(&mut std::collections::hash_map::DefaultHasher::new());
+        assert!(upstream < LocalCommandType::User); // derive(Eq, PartialEq, PartialOrd, Ord)
+        upstream.hash(&mut std::collections::hash_map::DefaultHasher::new()); // derive(Hash)
+        let _ = format!("{:?}", upstream); // derive(Debug)
     }
 
     #[test]

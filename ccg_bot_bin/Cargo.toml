@@ -44,7 +44,9 @@ version = "1.20"
 features = ["full"]
 
 [dependencies.twitch-irc]
-version = "5.0"
+git = "https://github.com/robotty/twitch-irc-rs"
+#version = "5.0" //update as soon as possible to include the below rev in an actual version
+rev = "2e3e36b"
 features = ["__refreshing-token", "async-tungstenite", "bytes", "prometheus", "refreshing-token-rustls-webpki-roots", "reqwest", "serde", "tokio-native-tls", "tokio-stream", "tokio-util", "transport-tcp", "transport-tcp-native-tls", "transport-ws", "transport-ws-rustls-webpki-roots", "with-serde"]
 optional = true
 
@@ -52,6 +54,13 @@ optional = true
 bitflags = "2.0.0"
 dashmap = { version = "5.1.0", features = ["serde"]}
 tokio-test = "*"
+typemap_rev = "0.1.3"
+
+[dev-dependencies.futures]
+version = "0.3"
+default-features = false
+features = ["std"]
+
 
 [features]
 default = ["discord", "twitch"]
