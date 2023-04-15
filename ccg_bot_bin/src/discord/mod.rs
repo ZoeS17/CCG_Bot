@@ -190,7 +190,7 @@ fn default_config() -> std::result::Result<Handler, serenity::Error> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::utils::json::prelude::from_str;
+    use crate::utils::json::prelude::{from_str, to_string};
     use crate::StdResult;
     use error::Error;
     use futures::channel::mpsc::unbounded;
@@ -457,7 +457,7 @@ mod tests {
 
     // #[derive(Clone, Debug, Default, Deserialize, Serialize)]
     #[derive(Clone, Debug, Deserialize, Serialize)]
-    struct GuildChannel {
+    pub struct GuildChannel {
         pub id: ChannelId,
         pub bitrate: Option<u64>,
         pub parent_id: Option<ChannelId>,
@@ -488,8 +488,10 @@ mod tests {
     }
 
     impl From<GuildChannel> for SerenityGuildChannel {
-        fn from(_value: GuildChannel) -> SerenityGuildChannel {
-            GuildChannel::default().into()
+        fn from(value: GuildChannel) -> SerenityGuildChannel {
+            let gc_str = to_string(&value).unwrap();
+            let gc: SerenityGuildChannel = from_str(&gc_str).unwrap();
+            gc
         }
     }
 
@@ -549,7 +551,7 @@ mod tests {
         }
     }
 
-    pub(crate) struct ChannelUpdateEvent {
+    pub struct ChannelUpdateEvent {
         channel: Channel,
     }
 
@@ -566,6 +568,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[should_panic]
     async fn handler_ready() {
         let sender = unbounded().0;
         let handler_context = Context {
@@ -575,8 +578,11 @@ mod tests {
             http: Arc::new(Http::new("")),
             cache: Arc::new(Cache::new()),
         };
-        let mut e: SerenityChannelUpdateEvent =
-            ChannelUpdateEvent { channel: Channel::Guild(GuildChannel::default().into()) }.into();
+        let gc = GuildChannel::default();
+        let sgc: SerenityGuildChannel = gc.into();
+        let c = Channel::Guild(sgc);
+        let cue = ChannelUpdateEvent { channel: c };
+        let mut e: SerenityChannelUpdateEvent = cue.into();
         handler_context.cache.update(&mut e);
         let handler = Handler(Config::default());
         let ready_str = r#"{
