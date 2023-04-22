@@ -7,6 +7,8 @@ use crate::utils::commandinteraction::CommandInteraction;
 //serenity
 use serenity::async_trait;
 use serenity::model::application::interaction::{Interaction, InteractionResponseType};
+// #[cfg(test)]
+// use serenity::model::application::command::Command;
 use serenity::model::gateway::Ready;
 use serenity::model::id::GuildId;
 use serenity::model::prelude::application::command::CommandOptionType;
@@ -32,12 +34,6 @@ pub mod commands;
 
 #[derive(Debug)]
 pub struct Handler(pub Config);
-
-#[cfg(test)]
-#[derive(Debug)]
-pub struct TestHandler {
-    pub interaction: Interaction,
-}
 
 #[async_trait]
 impl EventHandler for Handler {
@@ -75,11 +71,6 @@ impl EventHandler for Handler {
                 error!("Cannot respond to slash command: {why}");
             }
         }
-        // #[cfg(test)]
-        // {
-        //     let a = TestHandler{ interaction };
-        //     println!("{:#?}", a);
-        // }
     }
 
     async fn ready<'a>(&'a self, ctx: Context, ready: Ready) {
@@ -188,9 +179,10 @@ fn default_config() -> std::result::Result<Handler, serenity::Error> {
 }
 
 #[cfg(test)]
-mod tests {
+pub mod tests {
     use super::*;
-    use crate::utils::json::prelude::{from_str, to_string};
+    use crate::config::Config;
+    use crate::utils::json::prelude::from_str;
     use crate::StdResult;
     use error::Error;
     use futures::channel::mpsc::unbounded;
@@ -199,9 +191,8 @@ mod tests {
         cache::Cache, client::bridge::gateway::ShardMessenger, http::Http,
         model::application::interaction::application_command::ApplicationCommandInteraction,
         model::channel::ChannelType as SerenityChannelType,
-        model::channel::GuildChannel as SerenityGuildChannel,
-        model::event::ChannelUpdateEvent as SerenityChannelUpdateEvent,
     };
+    use std::hash::Hash;
     use std::sync::Arc;
     use tokio::sync::RwLock;
     use typemap_rev::TypeMap;
@@ -406,13 +397,6 @@ mod tests {
         let _ = handler.interaction_create(handler_context, handler_interaction_never).await;
     }
 
-    fn message_count_patch<'de, D: serde::Deserializer<'de>>(
-        deserializer: D,
-    ) -> StdResult<Option<u8>, D::Error> {
-        let real_count = Option::<u32>::deserialize(deserializer)?;
-        Ok(real_count.map(u8::try_from).transpose().unwrap_or(Some(u8::MAX)))
-    }
-
     #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, PartialOrd, Ord, Serialize)]
     #[repr(u8)]
     pub enum ChannelType {
@@ -453,176 +437,6 @@ mod tests {
             };
             chantype
         }
-    }
-
-    // #[derive(Clone, Debug, Default, Deserialize, Serialize)]
-    #[derive(Clone, Debug, Deserialize, Serialize)]
-    pub struct GuildChannel {
-        pub id: ChannelId,
-        pub bitrate: Option<u64>,
-        pub parent_id: Option<ChannelId>,
-        pub guild_id: GuildId,
-        #[serde(rename = "type")]
-        pub kind: ChannelType,
-        pub last_message_id: Option<MessageId>,
-        pub last_pin_timestamp: Option<Timestamp>,
-        pub name: String,
-        #[serde(default)]
-        pub permission_overwrites: Vec<PermissionOverwrite>,
-        #[serde(default)]
-        pub position: i64,
-        pub topic: Option<String>,
-        pub user_limit: Option<u64>,
-        #[serde(default)]
-        pub nsfw: bool,
-        #[serde(default)]
-        pub rate_limit_per_user: Option<u64>,
-        pub rtc_region: Option<String>,
-        pub video_quality_mode: Option<VideoQualityMode>,
-        #[serde(default, deserialize_with = "message_count_patch")]
-        pub message_count: Option<u8>,
-        pub member_count: Option<u8>,
-        pub thread_metadata: Option<ThreadMetadata>,
-        pub member: Option<ThreadMember>,
-        pub default_auto_archive_duration: Option<u64>,
-    }
-
-    impl From<GuildChannel> for SerenityGuildChannel {
-        fn from(value: GuildChannel) -> SerenityGuildChannel {
-            let gc_str = to_string(&value).unwrap();
-            let gc: SerenityGuildChannel = from_str(&gc_str).unwrap();
-            gc
-        }
-    }
-
-    impl Default for GuildChannel {
-        fn default() -> Self {
-            Self {
-                id: Default::default(),
-                bitrate: Default::default(),
-                parent_id: Default::default(),
-                guild_id: Default::default(),
-                kind: ChannelType::default(),
-                last_message_id: Default::default(),
-                last_pin_timestamp: Default::default(),
-                name: Default::default(),
-                permission_overwrites: Default::default(),
-                position: Default::default(),
-                topic: Default::default(),
-                user_limit: Default::default(),
-                nsfw: Default::default(),
-                rate_limit_per_user: Default::default(),
-                rtc_region: Default::default(),
-                video_quality_mode: Default::default(),
-                message_count: Default::default(),
-                member_count: Default::default(),
-                thread_metadata: Default::default(),
-                member: Default::default(),
-                default_auto_archive_duration: Default::default(),
-            }
-        }
-    }
-
-    impl From<SerenityGuildChannel> for GuildChannel {
-        fn from(value: SerenityGuildChannel) -> Self {
-            Self {
-                id: value.id,
-                bitrate: value.bitrate,
-                parent_id: value.parent_id,
-                guild_id: value.guild_id,
-                kind: value.kind.into(),
-                last_message_id: value.last_message_id,
-                last_pin_timestamp: value.last_pin_timestamp,
-                name: value.name,
-                permission_overwrites: value.permission_overwrites,
-                position: value.position,
-                topic: value.topic,
-                user_limit: value.user_limit,
-                nsfw: value.nsfw,
-                rate_limit_per_user: value.rate_limit_per_user,
-                rtc_region: value.rtc_region,
-                video_quality_mode: value.video_quality_mode,
-                message_count: value.message_count,
-                member_count: value.member_count,
-                thread_metadata: value.thread_metadata,
-                member: value.member,
-                default_auto_archive_duration: value.default_auto_archive_duration,
-            }
-        }
-    }
-
-    pub struct ChannelUpdateEvent {
-        channel: Channel,
-    }
-
-    impl From<SerenityChannelUpdateEvent> for ChannelUpdateEvent {
-        fn from(value: SerenityChannelUpdateEvent) -> Self {
-            Self { channel: value.channel }
-        }
-    }
-
-    impl From<ChannelUpdateEvent> for SerenityChannelUpdateEvent {
-        fn from(value: ChannelUpdateEvent) -> SerenityChannelUpdateEvent {
-            ChannelUpdateEvent { channel: value.channel }.into()
-        }
-    }
-
-    #[tokio::test]
-    #[should_panic]
-    async fn handler_ready() {
-        let sender = unbounded().0;
-        let handler_context = Context {
-            data: Arc::new(RwLock::new(TypeMap::new())),
-            shard: ShardMessenger::new(sender),
-            shard_id: 0_64,
-            http: Arc::new(Http::new("")),
-            cache: Arc::new(Cache::new()),
-        };
-        let gc = GuildChannel::default();
-        let sgc: SerenityGuildChannel = gc.into();
-        let c = Channel::Guild(sgc);
-        let cue = ChannelUpdateEvent { channel: c };
-        let mut e: SerenityChannelUpdateEvent = cue.into();
-        handler_context.cache.update(&mut e);
-        let handler = Handler(Config::default());
-        let ready_str = r#"{
-            "application": {
-                "id": "0",
-                "flags": 565248
-            },
-            "guilds": [
-                {
-                    "id": "0",
-                    "unavailable": true
-                }
-            ],
-            "presences": [],
-            "private_channels": [],
-            "session_id": "d41d8cd98f00b204e9800998ecf8427e",
-            "shard": [
-                0,
-                1
-            ],
-            "_trace": [
-                "[\"gateway-prd-us-east1-d-1mp8\",{\"micros\":116275,\"calls\":[\"id_created\",{\"micros\":933,\"calls\":[]},\"session_lookup_time\",{\"micros\":9743,\"calls\":[]},\"session_lookup_finished\",{\"micros\":17,\"calls\":[]},\"discord-sessions-blue-prd-2-165\",{\"micros\":104875,\"calls\":[\"start_session\",{\"micros\":52231,\"calls\":[\"discord-api-5bf757bbc6-dqbm2\",{\"micros\":47627,\"calls\":[\"get_user\",{\"micros\":16147},\"get_guilds\",{\"micros\":4372},\"send_scheduled_deletion_message\",{\"micros\":11},\"guild_join_requests\",{\"micros\":2},\"authorized_ip_coro\",{\"micros\":9}]}]},\"starting_guild_connect\",{\"micros\":73,\"calls\":[]},\"presence_started\",{\"micros\":10974,\"calls\":[]},\"guilds_started\",{\"micros\":106,\"calls\":[]},\"guilds_connect\",{\"micros\":2,\"calls\":[]},\"presence_connect\",{\"micros\":41445,\"calls\":[]},\"connect_finished\",{\"micros\":41450,\"calls\":[]},\"build_ready\",{\"micros\":18,\"calls\":[]},\"clean_ready\",{\"micros\":21,\"calls\":[]},\"optimize_ready\",{\"micros\":0,\"calls\":[]},\"split_ready\",{\"micros\":1,\"calls\":[]}]}]}]"
-            ],
-            "user": {
-                "id": "418980020498009988",
-                "avatar": "d41d8cd98f00b204e9800998ecf8427e",
-                "bot": true,
-                "discriminator": "0000",
-                "email": null,
-                "mfa_enabled": true,
-                "username": "Test",
-                "verified": true,
-                "public_flags": null,
-                "banner": null,
-                "accent_colour": null
-            },
-            "v": 10
-        }"#;
-        let ready = from_str(ready_str).unwrap();
-        let _ = handler.ready(handler_context, ready).await;
     }
 
     #[tokio::test]

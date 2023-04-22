@@ -25,7 +25,7 @@ struct ConfigTomlDiscord {
     token: Option<String>,
 }
 
-#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Config {
     #[cfg(any(feature = "discord", feature = "full"))]
     pub discord_guildid: String,
@@ -39,9 +39,26 @@ pub struct Config {
     pub twitch_bot_name: String,
 }
 
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            #[cfg(any(feature = "discord", feature = "full"))]
+            discord_guildid: "0".to_string(),
+            #[cfg(any(feature = "discord", feature = "full"))]
+            discord_token: Default::default(),
+            #[cfg(any(feature = "twitch", feature = "full"))]
+            twitch_channels: Default::default(),
+            #[cfg(any(feature = "twitch", feature = "full"))]
+            twitch_token: Default::default(),
+            #[cfg(any(feature = "twitch", feature = "full"))]
+            twitch_bot_name: Default::default(),
+        }
+    }
+}
+
 impl Config {
     pub fn new() -> Self {
-        let config_filepaths: [&str; 2] = ["./config.toml", "./Cofig.toml"];
+        let config_filepaths: [&str; 2] = ["./config.toml", "./Config.toml"];
         let mut content: String = "".to_owned();
         for filepath in config_filepaths {
             let result: Result<String, IoError> = fs::read_to_string(filepath);
@@ -65,11 +82,11 @@ impl Config {
         let discord_guildid: String = match config_toml.discord.clone() {
             Some(dgid) => dgid.guildid.unwrap_or_else(|| {
                 error!("Missing field `guildid` in table [discord]");
-                "discord".to_string()
+                "0".to_string()
             }),
             None => {
                 eprintln!("Missing table `[discord]`.");
-                "discord".to_string()
+                "0".to_string()
             },
         };
         #[cfg(any(feature = "discord", feature = "full"))]
@@ -84,6 +101,17 @@ impl Config {
             },
         };
         #[cfg(any(feature = "twitch", feature = "full"))]
+        let twitch_bot_name: String = match config_toml.twitch.clone() {
+            Some(tbn) => tbn.bot_name.unwrap_or_else(|| {
+                error!("Missing field `bot_name` in table [twitch]");
+                "twitch".to_string()
+            }),
+            None => {
+                error!("Missing table `[twitch]`.");
+                "twitch".to_string()
+            },
+        };
+        #[cfg(any(feature = "twitch", feature = "full"))]
         let twitch_channels: Vec<String> = match config_toml.twitch.clone() {
             Some(tc) => tc.channels.unwrap_or_else(|| {
                 error!("Missing field `channels` in table [twitch]");
@@ -95,20 +123,9 @@ impl Config {
             },
         };
         #[cfg(any(feature = "twitch", feature = "full"))]
-        let twitch_token: String = match config_toml.twitch.clone() {
+        let twitch_token: String = match config_toml.twitch {
             Some(tt) => tt.token.unwrap_or_else(|| {
                 error!("Missing field `token` in table [twitch]");
-                "twitch".to_string()
-            }),
-            None => {
-                error!("Missing table `[twitch]`.");
-                "twitch".to_string()
-            },
-        };
-        #[cfg(any(feature = "twitch", feature = "full"))]
-        let twitch_bot_name: String = match config_toml.twitch {
-            Some(tbn) => tbn.bot_name.unwrap_or_else(|| {
-                error!("Missing field `bot_name` in table [twitch]");
                 "twitch".to_string()
             }),
             None => {

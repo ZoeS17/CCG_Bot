@@ -17,8 +17,7 @@ use serenity::model::{
     event::UserUpdateEvent as SerenityUserUpdateEvent,
     guild::{PartialMember, Role},
     id::{GuildId, RoleId, UserId},
-    user::User as SerenityUser,
-    user::UserPublicFlags,
+    user::{User as SerenityUser, UserPublicFlags},
     Permissions, Timestamp,
 };
 use serenity::utils::Color;
@@ -38,15 +37,15 @@ fn it_works() {
     use super::super::discord::*;
     let dc: Result<Handler, serenity::Error> = aw!(new(Config {
         #[cfg(any(feature = "discord", feature = "full"))]
-        discord_token: "".to_string(),
-        #[cfg(any(feature = "discord", feature = "full"))]
         discord_guildid: "".to_string(),
-        #[cfg(feature = "twitch")]
+        #[cfg(any(feature = "discord", feature = "full"))]
+        discord_token: "".to_string(),
+        #[cfg(any(feature = "twitch", feature = "full"))]
+        twitch_bot_name: "".to_string(),
+        #[cfg(any(feature = "twitch", feature = "full"))]
         twitch_channels: vec!["".to_string()],
         #[cfg(any(feature = "twitch", feature = "full"))]
         twitch_token: "".to_string(),
-        #[cfg(any(feature = "twitch", feature = "full"))]
-        twitch_bot_name: "".to_string(),
     }));
     let disc_bool: bool = dc.is_ok();
     assert!(disc_bool);
