@@ -148,7 +148,7 @@ pub async fn new(config: Config) -> Result<Handler, std::env::VarError> {
     Ok(Handler(config))
 }
 
-#[cfg(all(test, not(coverage)))]
+#[cfg(test)]
 mod tests {
     use super::*;
 

@@ -155,7 +155,7 @@ async fn main() -> StdResult<(), Box<dyn StdError + Send + Sync>> {
     Ok(())
 }
 
-#[cfg(all(test, not(coverage)))]
+#[cfg(test)]
 mod main_tests {
     use super::*;
     use crate::utils::json::prelude::from_str;
