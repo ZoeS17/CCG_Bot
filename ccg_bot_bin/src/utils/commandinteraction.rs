@@ -310,7 +310,7 @@ impl From<SerenityPartialChannel> for PartialChannel {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(coverage)))]
 mod tests {
     use super::*;
     use crate::tests::discord::TestUser;

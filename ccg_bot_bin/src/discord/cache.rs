@@ -11,7 +11,7 @@ lazy_static! {
     pub static ref BOT_URL: String = CACHE.clone().face();
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(coverage)))]
 mod test {
     use super::*;
     #[test]

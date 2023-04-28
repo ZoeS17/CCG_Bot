@@ -178,7 +178,7 @@ fn default_config() -> std::result::Result<Handler, serenity::Error> {
     std::result::Result::Ok(Handler(Config::default()))
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(coverage)))]
 pub mod tests {
     use super::*;
     use crate::config::Config;

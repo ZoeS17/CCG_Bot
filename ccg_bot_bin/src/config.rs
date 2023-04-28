@@ -156,7 +156,7 @@ impl Config {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(coverage)))]
 mod test {
     use super::*;
     use crate::utils::json::prelude::{from_str, to_string};
