@@ -6,11 +6,13 @@
 //Crate doc
 #![doc = include_str!("../../README.md")]
 
+#[cfg(any(feature = "discord", feature = "full", feature = "twitch"))]
 #[macro_use]
 extern crate tracing;
 
 //crate
 //use ccg_bot_sys;
+#[cfg(any(feature = "discord", feature = "full", feature = "twitch"))]
 use config::Config;
 
 // serde
@@ -136,11 +138,137 @@ async fn main() -> StdResult<(), Box<dyn StdError + Send + Sync>> {
     tracing_subscriber::fmt::init();
     #[cfg(any(feature = "discord", feature = "twitch", feature = "full"))]
     let config: Config = Config::new();
-    #[cfg(any(feature = "discord", feature = "full"))]
+    #[cfg(any(feature = "full", all(feature = "twitch", feature = "discord")))]
     let discord_handle = tokio::spawn(discord::new(config.clone()));
-    #[cfg(any(feature = "twitch", feature = "full"))]
-    let twitch_handle = tokio::spawn(twitch::new(config));
+    #[cfg(any(feature = "full", all(feature = "twitch", feature = "discord")))]
+    let twitch_handle = tokio::spawn(twitch::new(config.clone()));
+    #[cfg(any(feature = "full", feature = "discord"))]
+    let d = tokio::spawn(discord::new(config.clone()));
+    #[cfg(any(feature = "full", feature = "discord"))]
+    drop(d);
+    #[cfg(any(feature = "full", feature = "twitch"))]
+    let t = tokio::spawn(twitch::new(config.clone()));
+    #[cfg(any(feature = "full", feature = "twitch"))]
+    drop(t);
     #[cfg(any(feature = "full", all(feature = "twitch", feature = "discord")))]
     let (_first, _second) = tokio::join!(discord_handle, twitch_handle);
     Ok(())
+}
+
+#[cfg(test)]
+mod main_tests {
+    use super::*;
+    use crate::utils::json::prelude::from_str;
+    use serde::Deserialize;
+
+    #[derive(Debug, Deserialize)]
+    struct JsonErrorStruct {
+        foo: String,
+        bar: Vec<String>,
+    }
+
+    fn statisfy_clippy() {
+        // why do I have to read this bogus struct for your goofy dead code analysis
+        let jes = JsonErrorStruct { foo: "".to_string(), bar: vec!["".to_string()] };
+        let _foo = format!("{:?}", jes.foo);
+        let _bar = format!("{:?}", jes.bar);
+    }
+
+    #[test]
+    fn derives_for_error() {
+        let _ = statisfy_clippy();
+        let e0 = Error::Format(FormatError);
+        let _ = format!("{:?}", e0);
+        let e1 = Error::Io(IoError::new(std::io::ErrorKind::Other, "test error"));
+        let _ = format!("{:?}", e1);
+        let je: Result<JsonErrorStruct, JsonError> = from_str(r#"""{"foo":"", "bar": ""}"""#);
+        let e2 = Error::Json(je.unwrap_err());
+        let _ = format!("{:?}", e2);
+        #[cfg(any(feature = "discord", feature = "full"))]
+        {
+            let e3 = Error::Discord(DiscordError::VarErr(env::VarError::NotPresent));
+            let _ = format!("{:?}", e3);
+        }
+        #[cfg(any(feature = "twitch", feature = "full"))]
+        {
+            let e4 = Error::Twitch(TwitchError::VarErr(env::VarError::NotPresent));
+            let _ = format!("{:?}", e4);
+        }
+    }
+
+    #[test]
+    fn impl_from_formaterror_for_error() {
+        let _ = Error::from(FormatError);
+        let _: Error = FormatError.into();
+    }
+
+    #[test]
+    fn impl_from_ioerror_for_error() {
+        let e = IoError::new(std::io::ErrorKind::Other, "test error");
+        let e2 = IoError::new(std::io::ErrorKind::Other, "test error");
+        let _ = Error::from(e);
+        let _: Error = e2.into();
+    }
+
+    #[test]
+    fn impl_from_jsonerror_for_error() {
+        let je: Result<JsonErrorStruct, JsonError> = from_str(r#"""{"foo":"", "bar": ""}"""#);
+        let e = JsonError::from(je.unwrap_err());
+        let je2: Result<JsonErrorStruct, JsonError> = from_str(r#"""{"foo":"", "bar": ""}"""#);
+        let e2 = JsonError::from(je2.unwrap_err());
+        let _ = Error::from(e);
+        let _: Error = e2.into();
+    }
+
+    #[cfg(any(feature = "discord", feature = "full"))]
+    #[test]
+    fn impl_from_discorderror_for_error() {
+        let e = DiscordError::VarErr(env::VarError::NotPresent);
+        let e2 = DiscordError::VarErr(env::VarError::NotPresent);
+        let _ = Error::from(e);
+        let _: Error = e2.into();
+    }
+
+    #[cfg(any(feature = "twitch", feature = "full"))]
+    #[test]
+    fn impl_from_twitcherror_for_error() {
+        let e = TwitchError::VarErr(env::VarError::NotPresent);
+        let e2 = TwitchError::VarErr(env::VarError::NotPresent);
+        let _ = Error::from(e);
+        let _: Error = e2.into();
+    }
+
+    #[test]
+    fn impl_display_for_error() {
+        let e0 = Error::Format(FormatError);
+        let _ = format!("{}", e0);
+        let e1 = Error::Io(IoError::new(std::io::ErrorKind::Other, "test error"));
+        let _ = format!("{}", e1);
+        let je: Result<JsonErrorStruct, JsonError> = from_str(r#"""{"foo":"", "bar": ""}"""#);
+        let e2 = Error::Json(je.unwrap_err());
+        let _ = format!("{}", e2);
+        #[cfg(any(feature = "discord", feature = "full"))]
+        {
+            let e3 = Error::Discord(DiscordError::VarErr(env::VarError::NotPresent));
+            let _ = format!("{}", e3);
+        }
+        #[cfg(any(feature = "twitch", feature = "full"))]
+        {
+            let e4 = Error::Twitch(TwitchError::VarErr(env::VarError::NotPresent));
+            let _ = format!("{}", e4);
+        }
+    }
+
+    #[test]
+    fn impl_stderror_for_error() {
+        let _ = Error::Format(FormatError).source();
+        let _ = Error::Io(IoError::new(std::io::ErrorKind::Other, "test error")).source();
+        let rje: Result<JsonErrorStruct, JsonError> = from_str(r#"""{"foo":"", "bar": ""}"""#);
+        let je = rje.unwrap_err();
+        let _ = Error::Json(je).source();
+        #[cfg(any(feature = "discord", feature = "full"))]
+        let _ = Error::Discord(DiscordError::VarErr(env::VarError::NotPresent)).source();
+        #[cfg(any(feature = "twitch", feature = "full"))]
+        let _ = Error::Twitch(TwitchError::VarErr(env::VarError::NotPresent)).source();
+    }
 }
