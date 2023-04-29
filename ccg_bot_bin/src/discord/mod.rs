@@ -7,6 +7,8 @@ use crate::utils::commandinteraction::CommandInteraction;
 //serenity
 use serenity::async_trait;
 use serenity::model::application::interaction::{Interaction, InteractionResponseType};
+// #[cfg(test)]
+// use serenity::model::application::command::Command;
 use serenity::model::gateway::Ready;
 use serenity::model::id::GuildId;
 use serenity::model::prelude::application::command::CommandOptionType;
@@ -36,7 +38,7 @@ pub struct Handler(pub Config);
 #[async_trait]
 impl EventHandler for Handler {
     async fn interaction_create(&self, ctx: Context, interaction: Interaction) {
-        if let Interaction::ApplicationCommand(command) = interaction {
+        if let Interaction::ApplicationCommand(command) = interaction.clone() {
             let context = ctx.clone();
             let cache = context.cache;
             trace!("{:?}", &command.data);
@@ -116,7 +118,7 @@ impl fmt::Display for DiscordErr {
 }
 
 impl error::Error for DiscordErr {
-    fn cause(&self) -> Option<&dyn error::Error> {
+    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
         match *self {
             // N.B. Both of these implicitly cast `err` from their concrete
             // types (either `&serenity::Error` or `&env::VarError`)
@@ -177,20 +179,26 @@ fn default_config() -> std::result::Result<Handler, serenity::Error> {
 }
 
 #[cfg(test)]
-mod tests {
+pub mod tests {
     use super::*;
+    use crate::config::Config;
     use crate::utils::json::prelude::from_str;
+    use crate::StdResult;
+    use error::Error;
     use futures::channel::mpsc::unbounded;
+    use serde::{Deserialize, Serialize};
     use serenity::{
         cache::Cache, client::bridge::gateway::ShardMessenger, http::Http,
         model::application::interaction::application_command::ApplicationCommandInteraction,
+        model::channel::ChannelType as SerenityChannelType,
     };
+    use std::hash::Hash;
     use std::sync::Arc;
     use tokio::sync::RwLock;
     use typemap_rev::TypeMap;
 
-    #[test]
-    fn handler_interaction_create() {
+    #[tokio::test]
+    async fn handler_interaction_create() {
         let sender = unbounded().0;
         let handler_context = Context {
             data: Arc::new(RwLock::new(TypeMap::new())),
@@ -200,14 +208,14 @@ mod tests {
             cache: Arc::new(Cache::new()),
         };
         let handler = Handler(Config::default());
-        let handler_interaction_command_str = r#"
+        let handler_interaction_command_ping_str = r#"
             {
                 "id": "0",
                 "application_id": "0",
                 "type": 2,
                 "data": {
                     "id": "0",
-                    "name": "",
+                    "name": "ping",
                     "type": 255,
                     "resolved": {},
                     "options": [],
@@ -231,14 +239,103 @@ mod tests {
                 "guild_locale": "en-US"
             }
         "#;
-        let handler_interaction_command: ApplicationCommandInteraction =
-            from_str(handler_interaction_command_str).unwrap();
-        let handler_interaction = Interaction::ApplicationCommand(handler_interaction_command);
-        let _ = handler.interaction_create(handler_context, handler_interaction);
+        let handler_interaction_command_id_str = r#"
+            {
+                "id": "0",
+                "application_id": "0",
+                "type": 2,
+                "data": {
+                    "id": "0",
+                    "name": "id",
+                    "type": 255,
+                    "resolved": {
+                        "users": {
+                            "418980020498009988": {
+                                "id": "418980020498009988",
+                                "avatar": "d41d8cd98f00b204e9800998ecf8427e",
+                                "bot": true,
+                                "discriminator": 0,
+                                "username": "Test",
+                                "public_flags": null,
+                                "banner": null,
+                                "accent_colour": null
+                            }
+                        }
+                    },
+                    "options": [
+                        {
+                            "name": "id",
+                            "value": "418980020498009988",
+                            "type": 6,
+                            "options": [],
+                            "resolved": {
+                                "User": [
+                                    {
+                                        "id":"418980020498009988",
+                                        "avatar": "d41d8cd98f00b204e9800998ecf8427e",
+                                        "bot": true,
+                                        "discriminator": "0000",
+                                        "username": "Test",
+                                        "public_flags": null,
+                                        "banner": null,
+                                        "accent_color": null
+                                    },
+                                    {
+                                        "deaf": false,
+                                        "joined_at": "2015-10-03T13:52:36.422Z",
+                                        "mute": false,
+                                        "nick": null,
+                                        "roles": [],
+                                        "pending": false,
+                                        "premium_since": null,
+                                        "guild_id": null,
+                                        "user": null,
+                                        "permissions": "0"
+                                    }
+                                ]
+                            },
+                            "focused":false
+                        }                        
+                    ],
+                    "target_id": null
+                },
+                "channel_id": "0",
+                "user": {
+                    "id": "0",
+                    "avatar": null,
+                    "bot": false,
+                    "discriminator": "0000",
+                    "username": "",
+                    "public_flags": null,
+                    "banner": null,
+                    "accent_color": null
+                },
+                "token": "",
+                "version": 0,
+                "app_permissions": "104320065",
+                "locale": "en-US",
+                "guild_locale": "en-US"
+            }
+        "#;
+        //ping
+        let handler_interaction_command_ping: ApplicationCommandInteraction =
+            from_str(handler_interaction_command_ping_str).unwrap();
+        let handler_interaction_ping =
+            Interaction::ApplicationCommand(handler_interaction_command_ping);
+        let _ = handler.interaction_create(handler_context.clone(), handler_interaction_ping).await;
+        //id
+        let handler_interaction_command_id: ApplicationCommandInteraction =
+            from_str(handler_interaction_command_id_str).unwrap();
+        dbg!(&handler_interaction_command_id);
+        let handler_interaction_id =
+            Interaction::ApplicationCommand(handler_interaction_command_id);
+        dbg!(&handler_interaction_id);
+        let _ = handler.interaction_create(handler_context, handler_interaction_id).await;
     }
 
-    #[test]
-    fn handler_ready() {
+    #[tokio::test]
+    #[should_panic]
+    async fn handler_interaction_create_unimplemented() {
         let sender = unbounded().0;
         let handler_context = Context {
             data: Arc::new(RwLock::new(TypeMap::new())),
@@ -248,48 +345,102 @@ mod tests {
             cache: Arc::new(Cache::new()),
         };
         let handler = Handler(Config::default());
-        let ready_str = r#"{
-            "application": {
+        let handler_interaction_command_never_str = r#"
+            {
                 "id": "0",
-                "flags": 565248
-            },
-            "guilds": [
-                {
+                "application_id": "0",
+                "type": 2,
+                "data": {
                     "id": "0",
-                    "unavailable": true
-                }
-            ],
-            "presences": [],
-            "private_channels": [],
-            "session_id": "d41d8cd98f00b204e9800998ecf8427e",
-            "shard": [
-                0,
-                1
-            ],
-            "_trace": [
-                "[\"gateway-prd-us-east1-d-1mp8\",{\"micros\":116275,\"calls\":[\"id_created\",{\"micros\":933,\"calls\":[]},\"session_lookup_time\",{\"micros\":9743,\"calls\":[]},\"session_lookup_finished\",{\"micros\":17,\"calls\":[]},\"discord-sessions-blue-prd-2-165\",{\"micros\":104875,\"calls\":[\"start_session\",{\"micros\":52231,\"calls\":[\"discord-api-5bf757bbc6-dqbm2\",{\"micros\":47627,\"calls\":[\"get_user\",{\"micros\":16147},\"get_guilds\",{\"micros\":4372},\"send_scheduled_deletion_message\",{\"micros\":11},\"guild_join_requests\",{\"micros\":2},\"authorized_ip_coro\",{\"micros\":9}]}]},\"starting_guild_connect\",{\"micros\":73,\"calls\":[]},\"presence_started\",{\"micros\":10974,\"calls\":[]},\"guilds_started\",{\"micros\":106,\"calls\":[]},\"guilds_connect\",{\"micros\":2,\"calls\":[]},\"presence_connect\",{\"micros\":41445,\"calls\":[]},\"connect_finished\",{\"micros\":41450,\"calls\":[]},\"build_ready\",{\"micros\":18,\"calls\":[]},\"clean_ready\",{\"micros\":21,\"calls\":[]},\"optimize_ready\",{\"micros\":0,\"calls\":[]},\"split_ready\",{\"micros\":1,\"calls\":[]}]}]}]"
-            ],
-            "user": {
-                "id": "418980020498009988",
-                "avatar": "d41d8cd98f00b204e9800998ecf8427e",
-                "bot": true,
-                "discriminator": "0000",
-                "email": null,
-                "mfa_enabled": true,
-                "username": "Test",
-                "verified": true,
-                "public_flags": null,
-                "banner": null,
-                "accent_colour": null
-            },
-            "v": 10
-        }"#;
-        let ready = from_str(ready_str).unwrap();
-        let _ = handler.ready(handler_context, ready);
+                    "name": "💀",
+                    "type": 255,
+                    "resolved": {
+                        "users": {
+                            "418980020498009988": {
+                                "id": "418980020498009988",
+                                "avatar": "d41d8cd98f00b204e9800998ecf8427e",
+                                "bot": true,
+                                "discriminator": 0,
+                                "username": "Test",
+                                "public_flags": null,
+                                "banner": null,
+                                "accent_colour": null
+                            }
+                        }
+                    },
+                    "options": [],
+                    "target_id": null
+                },
+                "channel_id": "0",
+                "user": {
+                    "id": "0",
+                    "avatar": null,
+                    "bot": false,
+                    "discriminator": "0000",
+                    "username": "",
+                    "public_flags": null,
+                    "banner": null,
+                    "accent_color": null
+                },
+                "token": "",
+                "version": 0,
+                "app_permissions": "104320065",
+                "locale": "en-US",
+                "guild_locale": "en-US"
+            }
+        "#;
+        //unimplemented
+        let handler_interaction_command_never: ApplicationCommandInteraction =
+            from_str(handler_interaction_command_never_str).unwrap();
+        let handler_interaction_never =
+            Interaction::ApplicationCommand(handler_interaction_command_never);
+        let _ = handler.interaction_create(handler_context, handler_interaction_never).await;
     }
 
-    #[test]
-    fn handler_message() {
+    #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, PartialOrd, Ord, Serialize)]
+    #[repr(u8)]
+    pub enum ChannelType {
+        Text = 0,
+        Private = 1,
+        Voice = 2,
+        Category = 4,
+        News = 5,
+        NewsThread = 10,
+        PublicThread = 11,
+        PrivateThread = 12,
+        Stage = 13,
+        Directory = 14,
+        Unknown = !0,
+    }
+
+    impl Default for ChannelType {
+        fn default() -> Self {
+            ChannelType::Text
+        }
+    }
+
+    impl From<SerenityChannelType> for ChannelType {
+        fn from(value: SerenityChannelType) -> Self {
+            let chantype = match value {
+                SerenityChannelType::Text => ChannelType::Text,
+                SerenityChannelType::Private => ChannelType::Private,
+                SerenityChannelType::Voice => ChannelType::Voice,
+                SerenityChannelType::Category => ChannelType::Category,
+                SerenityChannelType::News => ChannelType::News,
+                SerenityChannelType::NewsThread => ChannelType::NewsThread,
+                SerenityChannelType::PublicThread => ChannelType::PublicThread,
+                SerenityChannelType::PrivateThread => ChannelType::PrivateThread,
+                SerenityChannelType::Stage => ChannelType::Stage,
+                SerenityChannelType::Directory => ChannelType::Directory,
+                SerenityChannelType::Unknown => ChannelType::Unknown,
+                _ => unimplemented!("Unknown type {value:?}"),
+            };
+            chantype
+        }
+    }
+
+    #[tokio::test]
+    async fn handler_message() {
         let sender = unbounded().0;
         let handler_context = Context {
             data: Arc::new(RwLock::new(TypeMap::new())),
@@ -350,6 +501,36 @@ mod tests {
             "components": []
         }"#;
         let message: Message = from_str(message_str).unwrap();
-        let _ = handler.message(handler_context, message);
+        let _ = handler.message(handler_context, message).await;
+    }
+
+    #[test]
+    fn discorderr_derive_debug() {
+        let _ = format!("{:?}", DiscordErr::Serenity(serenity::Error::Other(&"Test error")));
+        let _ = format!("{:?}", DiscordErr::VarErr(std::env::VarError::NotPresent));
+    }
+
+    #[test]
+    fn discorderr_display() {
+        let _ = format!("{}", DiscordErr::Serenity(serenity::Error::Other(&"Test error")));
+        let _ = format!("{}", DiscordErr::VarErr(std::env::VarError::NotPresent));
+    }
+
+    #[test]
+    fn discorderr_from_impls() {
+        let _: DiscordErr = serenity::Error::Other(&"Test error").into();
+        let _: DiscordErr = std::env::VarError::NotPresent.into();
+    }
+
+    #[test]
+    fn impl_error_for_discorderr() {
+        let d_err: DiscordErr = serenity::Error::Other(&"Test error").into();
+        match StdResult::<(), DiscordErr>::Err(d_err).err() {
+            Some(e) => {
+                println!("Error: {e}");
+                println!("Caused by: {}", e.source().unwrap());
+            },
+            _ => println!("No error"),
+        };
     }
 }
