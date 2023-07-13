@@ -12,7 +12,9 @@ fn it_works() {
         #[cfg(any(feature = "twitch", feature = "full"))]
         twitch_channels: vec!["".to_string()],
         #[cfg(any(feature = "twitch", feature = "full"))]
-        twitch_token: "".to_string(),
+        twitch_client_id: "".to_string(),
+        #[cfg(any(feature = "twitch", feature = "full"))]
+        twitch_client_secret: "".to_string(),
     }));
     let twitch_bool: bool = twitch.is_ok();
     assert!(twitch_bool);
