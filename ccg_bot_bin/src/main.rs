@@ -118,6 +118,11 @@ impl StdError for Error {
     }
 }
 
+#[cfg(not(any(feature = "discord", feature = "twitch", feature = "full", test)))]
+fn main() {
+    std::compile_error!("Please rebuild with --feature [discord | twitch | full ] ");
+}
+
 #[tokio::main]
 async fn main() -> StdResult<(), Box<dyn StdError + Send + Sync>> {
     let mut log_var = String::from("");
@@ -131,25 +136,33 @@ async fn main() -> StdResult<(), Box<dyn StdError + Send + Sync>> {
     // In this case, a good default is setting the environment variable
     // `RUST_LOG` to `debug`, but for production, use the variable defined below.
     if !log_var.is_empty() {
-        env::set_var("RUST_LOG", format!("warn,ccg_bot={},meio=error", log_var));
+        env::set_var(
+            "RUST_LOG",
+            format!(
+                "warn,ccg_bot={},meio=error,twitch_irc={},reqwest={}",
+                &log_var, &log_var, log_var
+            ),
+        );
     } else {
-        env::set_var("RUST_LOG", "warn,CCG_Bot=warn,meio=error");
+        env::set_var("RUST_LOG", "warn,CCG_Bot=warn,meio=error,twitch_irc=warn");
     }
     tracing_subscriber::fmt::init();
     #[cfg(any(feature = "discord", feature = "twitch", feature = "full"))]
     let config: Config = Config::new();
     #[cfg(any(feature = "full", all(feature = "twitch", feature = "discord")))]
-    let discord_handle = tokio::spawn(discord::new(config.clone()));
+    let discord_handle = discord::new(config.clone());
     #[cfg(any(feature = "full", all(feature = "twitch", feature = "discord")))]
-    let twitch_handle = tokio::spawn(twitch::new(config.clone()));
-    #[cfg(any(feature = "full", feature = "discord"))]
-    let d = tokio::spawn(discord::new(config.clone()));
-    #[cfg(any(feature = "full", feature = "discord"))]
-    drop(d);
-    #[cfg(any(feature = "full", feature = "twitch"))]
-    let t = tokio::spawn(twitch::new(config.clone()));
-    #[cfg(any(feature = "full", feature = "twitch"))]
-    drop(t);
+    let twitch_handle = twitch::new(config.clone());
+    #[cfg(all(feature = "discord", not(any(feature = "full", feature = "twitch"))))]
+    match discord::new(config.clone()).await {
+        Ok(_) => (),
+        Err(e) => eprintln!("{:?}", e),
+    };
+    #[cfg(all(feature = "twitch", not(any(feature = "full", feature = "discord"))))]
+    match twitch::new(config.clone()).await {
+        Ok(_) => (),
+        Err(e) => eprintln!("{:?}", e),
+    };
     #[cfg(any(feature = "full", all(feature = "twitch", feature = "discord")))]
     let (_first, _second) = tokio::join!(discord_handle, twitch_handle);
     Ok(())
@@ -268,7 +281,5 @@ mod main_tests {
         let _ = Error::Json(je).source();
         #[cfg(any(feature = "discord", feature = "full"))]
         let _ = Error::Discord(DiscordError::VarErr(env::VarError::NotPresent)).source();
-        #[cfg(any(feature = "twitch", feature = "full"))]
-        let _ = Error::Twitch(TwitchError::VarErr(env::VarError::NotPresent)).source();
     }
 }

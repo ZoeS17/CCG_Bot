@@ -25,7 +25,9 @@ pub fn run(options: &CommandInteraction, cache: Arc<Cache>) -> CreateEmbed {
     let option = options.resolved.as_ref().expect("Expected user object");
 
     let res: CreateEmbed;
-    let CommandInteractionResolved::User(user, member) = option else { panic!("unexpected type in resolved")};
+    let CommandInteractionResolved::User(user, member) = option else {
+        panic!("unexpected type in resolved")
+    };
     let mut mem: PartialMember;
     if member.is_some() {
         mem = member.clone().unwrap();

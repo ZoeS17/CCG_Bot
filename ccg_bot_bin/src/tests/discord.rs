@@ -45,7 +45,9 @@ fn it_works() {
         #[cfg(any(feature = "twitch", feature = "full"))]
         twitch_channels: vec!["".to_string()],
         #[cfg(any(feature = "twitch", feature = "full"))]
-        twitch_token: "".to_string(),
+        twitch_client_id: "".to_string(),
+        #[cfg(any(feature = "twitch", feature = "full"))]
+        twitch_client_secret: "".to_string(),
     }));
     let disc_bool: bool = dc.is_ok();
     assert!(disc_bool);
