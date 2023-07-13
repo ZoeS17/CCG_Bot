@@ -1,5 +1,6 @@
 [workspace]
 members = ["ccg_bot_bin", "ccg_bot_sys"]
+resolver = "2"
 
 [profile.dev]
 opt-level = 3

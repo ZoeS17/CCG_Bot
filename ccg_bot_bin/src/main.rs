@@ -118,9 +118,9 @@ impl StdError for Error {
     }
 }
 
-#[cfg(not(any(feature = "discord", feature = "twitch", feature = "full")))]
+#[cfg(not(any(feature = "discord", feature = "twitch", feature = "full", test)))]
 fn main() {
-    build_error!("Please rebuild with --feature [discord | twitch | full ] ");
+    std::compile_error!("Please rebuild with --feature [discord | twitch | full ] ");
 }
 
 #[tokio::main]

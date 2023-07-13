@@ -292,6 +292,7 @@ mod test {
         let _ = format!("{:?}", all_some); // derive(Debug)
     }
 
+    #[cfg(any(feature = "full", all(feature = "twitch", feature = "discord")))]
     #[test]
     fn derives_config_toml() {
         let all_some = ConfigToml {
