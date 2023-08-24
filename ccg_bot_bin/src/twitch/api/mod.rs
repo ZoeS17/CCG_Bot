@@ -82,12 +82,11 @@ pub async fn new(
     Ok((token, rocket_handle))
 }
 
-#[must_use]
 async fn run_bot(
     auth_rx: Receiver<UserAccessToken>,
     shutdown_handle: Shutdown,
 ) -> Result<UserAccessToken, JoinError> {
-    Ok(tokio::task::spawn(async move {
+    tokio::task::spawn(async move {
         println!("waiting for auth token...");
         let token = auth_rx.recv().unwrap();
         println!("got auth token! shutting down server");
@@ -97,7 +96,7 @@ async fn run_bot(
         println!("server is shut down");
         token
     })
-    .await?)
+    .await
 }
 
 /// Opens the Twitch autorization page with a new thread. open-rs is not supposed to block, but it

@@ -11,11 +11,11 @@ use twitch_irc::{
 };
 
 //twtich_oauth2
+#[cfg(not(test))]
 use twitch_oauth2::{ClientId, ClientSecret};
 
 // crate
-use crate::config::Config;
-use crate::twitch::api;
+use {crate::config::Config, crate::twitch::api};
 
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
 pub struct BotTokenStorage {
@@ -33,7 +33,7 @@ struct Token {
 }
 
 impl BotTokenStorage {
-    pub fn new(&mut self, prefix: Option<String>) -> BotTokenStorage {
+    pub fn init(&mut self, prefix: Option<String>) -> BotTokenStorage {
         if let Some(prefix) = &prefix {
             if prefix.contains('_') {
                 panic!("Prefix cannot contain underscores");
@@ -49,7 +49,9 @@ impl BotTokenStorage {
         let username = Some(config.twitch_bot_name);
         let client_id = config.twitch_client_id;
         let client_secret = config.twitch_client_secret;
+        #[cfg(not(test))]
         let redirect_url = config.twitch_redirect_url;
+        #[cfg(not(test))]
         let (initial_token, _api_handle) = api::new(
             ClientId::new(client_id.clone()),
             ClientSecret::new(client_secret.clone()),
@@ -57,6 +59,13 @@ impl BotTokenStorage {
         )
         .await
         .expect("Failed to get UserAccessToken");
+        #[cfg(test)]
+        let test_initial_token_default = crate::tests::twitch::TestAccessToken::default();
+        #[cfg(test)]
+        let test_initial_token_str = serde_json::to_string(&test_initial_token_default).unwrap();
+        #[cfg(test)]
+        let initial_token =
+            serde_json::from_str::<UserAccessToken>(&test_initial_token_str).unwrap();
         self.update_token(&initial_token).await.expect("");
         let env = self;
         let rlc =
@@ -69,8 +78,7 @@ impl BotTokenStorage {
         T: std::str::FromStr,
         <T as std::str::FromStr>::Err: std::fmt::Debug,
     {
-        self.get_env_opt(key)?
-            .ok_or_else(|| super::TwitchErr::VarErr(std::env::VarError::NotPresent))
+        self.get_env_opt(key)?.ok_or(super::TwitchErr::VarErr(std::env::VarError::NotPresent))
     }
 
     pub fn get_env_opt<T>(&self, key: &str) -> Result<Option<T>, super::TwitchErr>
@@ -84,7 +92,7 @@ impl BotTokenStorage {
             key.to_string()
         };
 
-        let value = std::env::var(&key).map_err(|e| super::TwitchErr::VarErr(e))?;
+        let value = std::env::var(&key).map_err(super::TwitchErr::VarErr)?;
         // Make this trace so that no accidently gives us their access token(s)
         // but so if needed due to any upstream changes unknown errors can be easier to debug
         trace!("Found env: {}={}", key, value);
@@ -104,7 +112,7 @@ impl BotTokenStorage {
     {
         let key = self.format_key(key);
         let value = value.to_string();
-        std::env::set_var(&key, &value);
+        std::env::set_var(key, value);
 
         Ok(())
     }
