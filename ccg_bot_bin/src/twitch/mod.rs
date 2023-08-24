@@ -97,7 +97,7 @@ pub async fn new(config: Config) -> Result<Handler, std::env::VarError> {
     let cfg = config.clone();
     let prefix = Some("TWITCH".to_string());
 
-    let storage = tokens::BotTokenStorage::new(&mut tokens::BotTokenStorage::default(), prefix);
+    let storage = tokens::BotTokenStorage::init(&mut tokens::BotTokenStorage::default(), prefix);
     let client_config = storage.client_config(cfg.clone()).await;
 
     #[cfg(not(test))]

@@ -8,15 +8,14 @@ use super::tokens::BotTokenStorage;
 mod ping;
 
 pub fn has_mod_rights(message: PrivmsgMessage) -> bool {
-    if message.badges.contains(&Badge { name: "moderator".to_string(), version: "1".to_string() }) {
-        return true;
-    } else if message
-        .badges
-        .contains(&Badge { name: "broadcaster".to_string(), version: "1".to_string() })
+    if message.badges.contains(&Badge { name: "moderator".to_string(), version: "1".to_string() })
+        || message
+            .badges
+            .contains(&Badge { name: "broadcaster".to_string(), version: "1".to_string() })
     {
         return true;
     }
-    return false;
+    false
 }
 
 pub async fn parse_command(
@@ -34,10 +33,8 @@ pub async fn parse_command(
         // pseudo-default case
         ServerMessage::Privmsg { .. } => {
             let m = PrivmsgMessage::try_from(Into::<IRCMessage>::into(message.clone())).unwrap();
-            if has_mod_rights(m.to_owned()) {
-                if m.message_text.starts_with("!ping") {
-                    tokio::spawn(async move { ping::handle(m, irc_client).await });
-                }
+            if has_mod_rights(m.to_owned()) && m.message_text.starts_with("!ping") {
+                tokio::spawn(async move { ping::handle(m, irc_client).await });
             };
         },
         // All other cases are bunk
