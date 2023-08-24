@@ -17,6 +17,7 @@ struct ConfigTomlTwitch {
     client_id: Option<String>,
     client_secret: Option<String>,
     bot_name: Option<String>,
+    redirect_url: Option<String>,
 }
 
 #[cfg(any(feature = "discord", feature = "full"))]
@@ -40,6 +41,8 @@ pub struct Config {
     pub twitch_client_secret: String,
     #[cfg(any(feature = "twitch", feature = "full"))]
     pub twitch_bot_name: String,
+    #[cfg(any(feature = "twitch", feature = "full"))]
+    pub twitch_redirect_url: String,
 }
 
 impl Default for Config {
@@ -57,6 +60,8 @@ impl Default for Config {
             twitch_client_secret: Default::default(),
             #[cfg(any(feature = "twitch", feature = "full"))]
             twitch_bot_name: Default::default(),
+            #[cfg(any(feature = "twitch", feature = "full"))]
+            twitch_redirect_url: Default::default(),
         }
     }
 }
@@ -147,9 +152,20 @@ impl Config {
             },
         };
         #[cfg(any(feature = "twitch", feature = "full"))]
-        let twitch_client_secret: String = match config_toml.twitch {
+        let twitch_client_secret: String = match config_toml.twitch.clone() {
             Some(tcs) => tcs.client_secret.unwrap_or_else(|| {
                 error!("Missing field `client_secret` in table [twitch]");
+                "twitch".to_string()
+            }),
+            None => {
+                error!("Missing table `[twitch]`.");
+                "twitch".to_string()
+            },
+        };
+        #[cfg(any(feature = "twitch", feature = "full"))]
+        let twitch_redirect_url: String = match config_toml.twitch {
+            Some(rdu) => rdu.redirect_url.unwrap_or_else(|| {
+                error!("Missing field `redirect_url` in table [twitch]");
                 "twitch".to_string()
             }),
             None => {
@@ -170,6 +186,8 @@ impl Config {
             twitch_client_secret,
             #[cfg(any(feature = "twitch", feature = "full"))]
             twitch_bot_name,
+            #[cfg(any(feature = "twitch", feature = "full"))]
+            twitch_redirect_url,
         }
     }
 }
@@ -207,84 +225,98 @@ mod test {
             client_id: Some("".to_string()),
             client_secret: Some("".to_string()),
             bot_name: Some("".to_string()),
+            redirect_url: Some("".to_string()),
         };
         let _channels_some = ConfigTomlTwitch {
             channels: Some(vec!["Twitch".to_string(), "TwitchRivals".to_string()]),
             client_id: None,
             client_secret: None,
             bot_name: None,
+            redirect_url: None,
         };
         let _client_id_some = ConfigTomlTwitch {
             channels: None,
             client_id: Some("".to_string()),
             client_secret: None,
             bot_name: None,
+            redirect_url: None,
         };
         let _client_secret_some = ConfigTomlTwitch {
             channels: None,
             client_id: None,
             client_secret: Some("".to_string()),
             bot_name: None,
+            redirect_url: None,
         };
         let _bot_name_some = ConfigTomlTwitch {
             channels: None,
             client_id: None,
             client_secret: None,
             bot_name: Some("".to_string()),
+            redirect_url: None,
         };
         let _first_pair_some = ConfigTomlTwitch {
             channels: Some(vec!["Twitch".to_string(), "TwitchRivals".to_string()]),
             client_id: Some("".to_string()),
             client_secret: None,
             bot_name: None,
+            redirect_url: None,
         };
         let _second_pair_some = ConfigTomlTwitch {
             channels: None,
             client_id: Some("".to_string()),
             client_secret: Some("".to_string()),
             bot_name: None,
+            redirect_url: None,
         };
         let _one_three_some = ConfigTomlTwitch {
             channels: Some(vec!["Twitch".to_string(), "TwitchRivals".to_string()]),
             client_id: None,
             client_secret: Some("".to_string()),
             bot_name: None,
+            redirect_url: None,
         };
         let _two_four_some = ConfigTomlTwitch {
             channels: None,
             client_id: Some("".to_string()),
             client_secret: None,
             bot_name: Some("".to_string()),
+            redirect_url: None,
         };
         let _outer_some = ConfigTomlTwitch {
             channels: Some(vec!["Twitch".to_string(), "TwitchRivals".to_string()]),
             client_id: None,
             client_secret: None,
             bot_name: Some("".to_string()),
+            redirect_url: None,
         };
         let _all_none = ConfigTomlTwitch {
             channels: None,
             client_id: None,
             client_secret: None,
             bot_name: None,
+            redirect_url: None,
         };
         let _first_pair_none = ConfigTomlTwitch {
             channels: None,
             client_id: None,
             client_secret: Some("".to_string()),
             bot_name: Some("".to_string()),
+            redirect_url: None,
         };
         let _second_pair_none = ConfigTomlTwitch {
             channels: Some(vec!["Twitch".to_string(), "TwitchRivals".to_string()]),
             client_id: None,
             client_secret: None,
             bot_name: Some("".to_string()),
+            redirect_url: None,
         };
         let _outer_none = ConfigTomlTwitch {
             channels: None,
             client_id: Some("".to_string()),
             client_secret: Some("".to_string()),
             bot_name: None,
+            redirect_url: None,
         };
         let all_some_string = to_string(&all_some).unwrap(); // derive(Serialize)
         let _: ConfigTomlTwitch = from_str(&all_some_string).unwrap(); // derive(Deserialize)
@@ -307,6 +339,7 @@ mod test {
                 client_id: Some("".to_string()),
                 client_secret: Some("".to_string()),
                 bot_name: Some("".to_string()),
+                redirect_url: Some("".to_string()),
             }),
         };
         let _discord_some = ConfigToml {
@@ -327,6 +360,7 @@ mod test {
                 client_id: Some("".to_string()),
                 client_secret: Some("".to_string()),
                 bot_name: Some("".to_string()),
+                redirect_url: Some("".to_string()),
             }),
         };
         let all_some_string = to_string(&all_some).unwrap(); // derive(Serialize)

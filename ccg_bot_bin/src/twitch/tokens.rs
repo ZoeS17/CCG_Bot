@@ -10,8 +10,12 @@ use twitch_irc::{
     ClientConfig,
 };
 
+//twtich_oauth2
+use twitch_oauth2::{ClientId, ClientSecret};
+
 // crate
 use crate::config::Config;
+use crate::twitch::api;
 
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
 pub struct BotTokenStorage {
@@ -38,13 +42,22 @@ impl BotTokenStorage {
         Self { prefix }
     }
 
-    pub fn client_config(
-        self,
+    pub async fn client_config(
+        mut self,
         config: Config,
     ) -> ClientConfig<RefreshingLoginCredentials<BotTokenStorage>> {
         let username = Some(config.twitch_bot_name);
         let client_id = config.twitch_client_id;
         let client_secret = config.twitch_client_secret;
+        let redirect_url = config.twitch_redirect_url;
+        let (initial_token, _api_handle) = api::new(
+            ClientId::new(client_id.clone()),
+            ClientSecret::new(client_secret.clone()),
+            redirect_url,
+        )
+        .await
+        .expect("Failed to get UserAccessToken");
+        self.update_token(&initial_token).await.expect("");
         let env = self;
         let rlc =
             RefreshingLoginCredentials::init_with_username(username, client_id, client_secret, env);
@@ -71,8 +84,10 @@ impl BotTokenStorage {
             key.to_string()
         };
 
-        let value = std::env::var(&key).map_err(|_e| std::env::VarError::NotPresent)?;
-        debug!("Found env: {}={}", key, value);
+        let value = std::env::var(&key).map_err(|e| super::TwitchErr::VarErr(e))?;
+        // Make this trace so that no accidently gives us their access token(s)
+        // but so if needed due to any upstream changes unknown errors can be easier to debug
+        trace!("Found env: {}={}", key, value);
 
         let value = value.parse::<T>().map_err(|e| super::TwitchErr::FailedToParse {
             key: key.to_string(),
@@ -153,7 +168,9 @@ impl TokenStorage for BotTokenStorage {
             Err(_) => Utc::now() + chrono::Duration::seconds(7500_i64),
         };
         let token = Token { access_token: at, refresh_token: rt, created_at: ca, expires_at: ea };
-        debug!("[load_token] token = {token:?}");
+        // Make this trace so that no accidently gives us their access token(s)
+        // but so if needed due to any upstream changes unknown errors can be easier to debug
+        trace!("[load_token] token = {token:?}");
         let uat = UserAccessToken {
             access_token: token.access_token,
             refresh_token: token.refresh_token,
@@ -165,17 +182,13 @@ impl TokenStorage for BotTokenStorage {
     }
 
     async fn update_token(&mut self, token: &UserAccessToken) -> Result<(), Self::UpdateError> {
-        let s = self.clone();
-        debug!("[update_token] self = {s:?}");
-        debug!("[update_token] token = {token:?}");
+        // Make this trace so that no accidently gives us their access token(s)
+        // but so if needed due to any upstream changes unknown errors can be easier to debug
+        trace!("[update_token] token = {token:?}");
         self.set_env("ACCESS_TOKEN", &token.access_token).unwrap();
-        let self_clone = self.clone();
-        debug!("[update_token] self_clone = {self_clone:?}");
         self.set_env("REFRESH_TOKEN", &token.refresh_token).unwrap();
         self.set_env("TOKEN_CREATED_AT", token.created_at).unwrap();
         self.set_env("TOKEN_EXPIRES_AT", token.expires_at.unwrap_or_default()).unwrap();
-        let new_self = self.clone();
-        debug!("[update_token] new_self = {new_self:?}");
         Ok(())
     }
 }

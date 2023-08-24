@@ -7,3 +7,4 @@ channels = ["Twitch", "TwitchRivals"]
 client_id  ""
 client_secret  ""
 bot_name = "" # The name fallback name for the Bot.
+redirect_url = "http://localhost:3000/auth/twitch/callback"
