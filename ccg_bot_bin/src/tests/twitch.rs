@@ -15,6 +15,8 @@ fn it_works() {
         twitch_client_id: "".to_string(),
         #[cfg(any(feature = "twitch", feature = "full"))]
         twitch_client_secret: "".to_string(),
+        #[cfg(any(feature = "twitch", feature = "full"))]
+        twitch_redirect_url: "".to_string()
     }));
     let twitch_bool: bool = twitch.is_ok();
     assert!(twitch_bool);

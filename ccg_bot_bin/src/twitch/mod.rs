@@ -14,6 +14,8 @@ use twitch_irc::message::{IRCMessage, JoinMessage, PrivmsgMessage, ServerMessage
 use twitch_irc::{SecureTCPTransport, TwitchIRCClient};
 
 //module(s)
+mod api;
+mod commands;
 #[doc(hidden)]
 mod tokens;
 
@@ -48,13 +50,7 @@ impl fmt::Display for TwitchErr {
 }
 
 #[doc(hidden)]
-impl error::Error for TwitchErr {
-    // fn cause(&self) -> Option<&dyn error::Error> {
-    //     match *self {
-    //         TwitchErr::VarErr(ref err) => Some(err),
-    //     }
-    // }
-}
+impl error::Error for TwitchErr {}
 
 #[doc(hidden)]
 impl From<std::env::VarError> for TwitchErr {
@@ -63,6 +59,7 @@ impl From<std::env::VarError> for TwitchErr {
     }
 }
 
+#[doc(hidden)]
 fn get_stacktrace(e: &dyn std::error::Error) -> String {
     let mut s = vec![];
     let mut source = Some(e);
@@ -87,6 +84,7 @@ pub(crate) fn parse_message<L: AsRef<str> + std::fmt::Debug, M: AsRef<str> + std
 ) {
     match level.as_ref() {
         "info" => info!("Received message: {:?}", message),
+        "debug" => debug!("Received message: {:?}", message),
         "trace" => trace!("Received message: {:?}", message),
         _ => panic!(),
     }
@@ -95,12 +93,12 @@ pub(crate) fn parse_message<L: AsRef<str> + std::fmt::Debug, M: AsRef<str> + std
 ///Creates a new chat listener for channels in your config.toml
 pub async fn new(config: Config) -> Result<Handler, std::env::VarError> {
     // these credentials can be generated for your app at https://dev.twitch.tv/console/apps
-    // the bot's username will be fetched based on your access token
+    // the bot's username will be set based on your config
     let cfg = config.clone();
     let prefix = Some("TWITCH".to_string());
 
     let storage = tokens::BotTokenStorage::new(&mut tokens::BotTokenStorage::default(), prefix);
-    let client_config = storage.client_config(cfg.clone());
+    let client_config = storage.client_config(cfg.clone()).await;
 
     #[cfg(not(test))]
     let (mut incoming_messages, client) = TwitchIRCClient::<
@@ -112,6 +110,8 @@ pub async fn new(config: Config) -> Result<Handler, std::env::VarError> {
         SecureTCPTransport,
         RefreshingLoginCredentials<tokens::BotTokenStorage>,
     >::new(client_config);
+    #[cfg(not(test))]
+    let client_clone = client.clone();
     #[cfg(not(test))]
     let join_handle = tokio::spawn(async move {
         while let Some(message) = incoming_messages.recv().await {
@@ -129,40 +129,32 @@ pub async fn new(config: Config) -> Result<Handler, std::env::VarError> {
                 ServerMessage::GlobalUserState { .. } => {
                     parse_message("trace", format!("{:?}", message));
                 },
-                ServerMessage::Join { .. } => println!(
-                    "[twitch / #{}] {} joined",
-                    JoinMessage::try_from(Into::<IRCMessage>::into(message.clone()))
-                        .unwrap()
-                        .channel_login,
-                    JoinMessage::try_from(Into::<IRCMessage>::into(message.clone()))
-                        .unwrap()
-                        .user_login,
-                ),
+                ServerMessage::Join { .. } => {
+                    let m =
+                        JoinMessage::try_from(Into::<IRCMessage>::into(message.clone())).unwrap();
+                    println!("[twitch / #{}] {} joined", m.channel_login, m.user_login)
+                },
                 ServerMessage::Notice { .. } => {
                     parse_message("trace", format!("{:?}", message));
                 },
                 ServerMessage::Part { .. } => {
                     parse_message("info", format!("{:?}", message));
-                }, //FIXME: parse part messages like we do privmsg's
+                },
                 ServerMessage::Ping { .. } => {
                     parse_message("trace", format!("{:?}", message));
                 },
                 ServerMessage::Pong { .. } => {
                     parse_message("trace", format!("{:?}", message));
                 },
-                ServerMessage::Privmsg { .. } => println!(
-                    "[twitch / {}] {}: {}",
-                    PrivmsgMessage::try_from(Into::<IRCMessage>::into(message.clone()))
-                        .unwrap()
-                        .channel_login,
-                    PrivmsgMessage::try_from(Into::<IRCMessage>::into(message.clone()))
-                        .unwrap()
-                        .sender
-                        .login,
-                    PrivmsgMessage::try_from(Into::<IRCMessage>::into(message))
-                        .unwrap()
-                        .message_text
-                ),
+                ServerMessage::Privmsg { .. } => {
+                    let m = PrivmsgMessage::try_from(Into::<IRCMessage>::into(message.clone()))
+                        .unwrap();
+                    commands::parse_command(message, client_clone.clone()).await;
+                    println!(
+                        "[twitch / {}] {}: {}",
+                        m.channel_login, m.sender.login, m.message_text
+                    )
+                },
                 ServerMessage::Reconnect { .. } => {
                     parse_message("trace", format!("{:?}", message));
                 },
@@ -176,6 +168,8 @@ pub async fn new(config: Config) -> Result<Handler, std::env::VarError> {
                     parse_message("trace", format!("{:?}", message));
                 },
                 ServerMessage::Whisper { .. } => {
+                    // Should this be left at debug or should it be trace because of reporting safety?
+                    // We don't want users to accidentaly leak their whispers.
                     parse_message("debug", format!("{:?}", message));
                 },
                 _ => eprintln!("received unexpected message variant {:?}", message),
@@ -198,6 +192,7 @@ mod tests {
     #[test]
     fn parse_message() {
         super::parse_message("info", "Test info");
+        super::parse_message("debug", "Test debug");
         super::parse_message("trace", "Test trace");
     }
 
@@ -230,6 +225,8 @@ mod tests {
             twitch_client_id: "".to_string(),
             #[cfg(any(feature = "twitch", feature = "full"))]
             twitch_client_secret: "".to_string(),
+            #[cfg(any(feature = "twitch", feature = "full"))]
+            twitch_redirect_url: "".to_string(),
         });
         let _ = format!("{:?}", handle);
     }
