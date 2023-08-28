@@ -4,7 +4,7 @@ token = "AbcDEFGhJkl0MnO1PQRsTUvx.Abcdef.AbCDefgHiJkLMNOpqrSTU0vWXy1"
 
 [twitch]
 channels = ["Twitch", "TwitchRivals"]
-client_id  ""
-client_secret  ""
-bot_name = "" # The name fallback name for the Bot.
+client_id  "IamAclientId"
+client_secret  "IamAclientSecret"
+bot_name = "TestUser" # The name fallback name for the Bot.
 redirect_url = "http://localhost:3000/auth/twitch/callback"

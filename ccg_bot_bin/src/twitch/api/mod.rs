@@ -71,7 +71,7 @@ pub async fn new(
     // and wait for the task to end
     open_auth_page(auth_page_url).await?;
     // wait for main task to end
-    let token = run_bot(auth_rx, shutdown_handle).await?;
+    let token = get_token(auth_rx, shutdown_handle).await?;
 
     // wait for rocket execution to end
     //
@@ -82,7 +82,7 @@ pub async fn new(
     Ok((token, rocket_handle))
 }
 
-async fn run_bot(
+async fn get_token(
     auth_rx: Receiver<UserAccessToken>,
     shutdown_handle: Shutdown,
 ) -> Result<UserAccessToken, JoinError> {
