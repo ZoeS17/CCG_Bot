@@ -14,6 +14,7 @@ use twitch_irc::message::{IRCMessage, JoinMessage, PrivmsgMessage, ServerMessage
 use twitch_irc::{SecureTCPTransport, TwitchIRCClient};
 
 //module(s)
+#[cfg(not(test))]
 mod api;
 mod commands;
 #[doc(hidden)]

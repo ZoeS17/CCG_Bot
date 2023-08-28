@@ -15,7 +15,9 @@ use twitch_irc::{
 use twitch_oauth2::{ClientId, ClientSecret};
 
 // crate
-use {crate::config::Config, crate::twitch::api};
+use crate::config::Config;
+#[cfg(not(test))]
+use crate::twitch::api;
 
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
 pub struct BotTokenStorage {
@@ -33,6 +35,11 @@ struct Token {
 }
 
 impl BotTokenStorage {
+    #[cfg(test)]
+    pub(crate) fn new() -> Self {
+        Self { prefix: Some("TWITCH".to_string()) }
+    }
+
     pub fn init(&mut self, prefix: Option<String>) -> BotTokenStorage {
         if let Some(prefix) = &prefix {
             if prefix.contains('_') {

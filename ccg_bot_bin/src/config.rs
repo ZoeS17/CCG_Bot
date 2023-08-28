@@ -195,6 +195,7 @@ impl Config {
 #[cfg(test)]
 mod test {
     use super::*;
+    #[cfg(any(feature = "discord", feature = "full", feature = "twitch"))]
     use crate::utils::json::prelude::{from_str, to_string};
 
     #[cfg(any(feature = "discord", feature = "full"))]

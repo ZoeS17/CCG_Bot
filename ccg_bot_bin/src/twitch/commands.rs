@@ -41,3 +41,51 @@ pub async fn parse_command(
         _ => panic!(),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use twitch_irc::{
+        login::RefreshingLoginCredentials,
+        message::{IRCMessage, PrivmsgMessage, ServerMessage},
+        ClientConfig, TwitchIRCClient,
+    };
+
+    const SRC: &str = "@badge-info=;badges=moderator/1;color=#AA66FF;display-name=TestUser;emotes=;flags=;id=8da29c58-d182-40cd-8b65-1dc446b45c65;mod=1;room-id=78127347;subscriber=0;tmi-sent-ts=1693037683123;turbo=0;user-id=12345678;user-type= :testuser!testuser@testuser.tmi.twitch.tv PRIVMSG #zoes17 :This is a test";
+
+    fn get_irc_msg(msg: &str) -> IRCMessage {
+        IRCMessage::parse(msg).unwrap()
+    }
+
+    fn get_privmsg(msg: IRCMessage) -> PrivmsgMessage {
+        PrivmsgMessage::try_from(msg).unwrap()
+    }
+
+    fn get_svrmsg(msg: IRCMessage) -> ServerMessage {
+        ServerMessage::try_from(msg).unwrap()
+    }
+
+    #[tokio::test]
+    async fn parse() {
+        let irc_message = get_irc_msg(SRC);
+        let server_message = get_svrmsg(irc_message);
+        let bts = BotTokenStorage::new();
+        let rlc = RefreshingLoginCredentials::init_with_username(
+            Some("TestUser".to_string()),
+            "client_id".to_string(),
+            "client_secret".to_string(),
+            bts,
+        );
+        let client_config = ClientConfig::new_simple(rlc);
+        let (_, client) = TwitchIRCClient::new(client_config);
+        let t = parse_command(server_message, client).await;
+        assert_eq!((), t);
+    }
+
+    #[test]
+    fn mod_status() {
+        let irc_message = get_irc_msg(SRC);
+        let message = get_privmsg(irc_message);
+        assert_eq!(true, has_mod_rights(message));
+    }
+}
