@@ -49,8 +49,8 @@ features = ["full"]
 
 [dependencies.twitch-irc]
 git = "https://github.com/robotty/twitch-irc-rs"
-#version = "5.0" //update as soon as possible to include the below rev in an actual version
-rev = "2e3e36b"
+version = "5.0" #update as soon as possible to include the below rev in an actual version
+#rev = "2e3e36b"
 features = ["__refreshing-token", "async-tungstenite", "bytes", "prometheus", "refreshing-token-rustls-webpki-roots", "reqwest", "serde", "tokio-native-tls", "tokio-stream", "tokio-util", "transport-tcp", "transport-tcp-native-tls", "transport-ws", "transport-ws-rustls-webpki-roots", "with-serde"]
 optional = true
 
