@@ -16,7 +16,7 @@ rust-version = "1.70"
 async-trait = "0.1"
 ccg_bot_sys = { version = "0.1.0", path = "../ccg_bot_sys"}
 chrono = { version = "0.4", default-features = false }
-governor = "0.5"
+governor = "0.6"
 lazy_static = "1.4"
 nom = "7.0"
 serde = { version = "1.0", features = ["derive"] }
@@ -38,9 +38,11 @@ default-features = false
 features = ["json", "rustls-tls"]
 
 [dependencies.serenity]
-version = "0.11.5"
+git = "https://github.com/serenity-rs/serenity"
+#version = "0.11.6"
+rev = "ab08c9f" #update as soon as possible to an actual version that includes this rev
 default-features = false
-features = ["cache", "client", "gateway", "model", "rustls_backend"]
+features = ["cache", "client", "gateway", "model", "native_tls_backend"]
 optional = true
 
 [dependencies.tokio]
