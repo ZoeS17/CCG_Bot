@@ -46,7 +46,7 @@ jobs:
 #        run: cargo test --locked --all-features --all-targets
   os-check:
     runs-on: ${{ matrix.os }}
-    name: ${{ matrix.os }} / stable
+    name: ${{ runner.os }} / stable
     strategy:
       fail-fast: false
       matrix:
@@ -60,7 +60,7 @@ jobs:
         shell: cmd
         run: |
           choco install mysql
-          "C:\tools\mysql\current\bin\mysql" -e "create database ccgbot_rust; grant all on `ccgbot_rust`.* to 'ccgbotrust'@'localhost';" -uccgbotrust
+          "C:\tools\mysql\current\bin\mysql" -e "create database ccgbot_rust; grant all on `ccgbot_rust`.* to 'root'@'localhost';" -uroot
       - name: Set variables for mysql (Windows)
         if: runner.os == 'Windows'
         shell: bash
