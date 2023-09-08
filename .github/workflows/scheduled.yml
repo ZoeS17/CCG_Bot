@@ -47,3 +47,21 @@ jobs:
         run: cargo test --locked --all-features --all-targets
         env:
           RUSTFLAGS: -D deprecated
+  audit:
+    runs-on: ubuntu-latest
+    name: ubuntu / audit
+    # There's no point running this if no Cargo.lock was checked in in the
+    # first place, since we'd just redo what happened in the regular test job.
+    # Unfortunately, hashFiles only works in if on steps, so we repeat it.
+    # if: hashFiles('Cargo.lock') != ''
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: Install stable
+        if: hashFiles('Cargo.lock') != ''
+        uses: dtolnay/rust-toolchain@stable
+      - name: cargo audit
+        uses: actions-rs/audit-check@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
