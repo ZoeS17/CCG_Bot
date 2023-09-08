@@ -31,6 +31,13 @@ toml = "0.5.9"
 twitch_oauth2 = { version = "0.12.4", features = ["client", "reqwest"] }
 rocket = "0.5.0-rc.3"
 open = "5.0.0"
+twitch_api = { version = "0.7.0-rc.6", default-features = false, features = ["client", "eventsub", "helix", "typed-builder"] }
+once_cell = { version = "1.18.0", default-features = false }
+
+[dependencies.diesel]
+version = "2.1.1"
+default-features = false
+features = ["32-column-tables", "mysql", "without-deprecated"]
 
 [dependencies.reqwest]
 version = "0.11"
