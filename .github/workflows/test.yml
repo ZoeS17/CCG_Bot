@@ -46,7 +46,7 @@ jobs:
 #        run: cargo test --locked --all-features --all-targets
   os-check:
     runs-on: ${{ matrix.os }}
-    name: ${{ runner.os }} / stable
+    name: ${{ matrix.os }} / stable
     strategy:
       fail-fast: false
       matrix:
