@@ -2,18 +2,23 @@
 
 //crate
 use crate::config::Config;
+#[cfg(all(any(feature = "discord", feature = "full"), test))]
+use crate::tests::discord::test_shard_info_serde;
 use crate::utils::commandinteraction::CommandInteraction;
 
+#[cfg(all(any(feature = "discord", feature = "full"), test))]
+use serde::Serialize;
+
 //serenity
+use serenity::all::{
+    CommandOptionType, CreateInteractionResponse, CreateInteractionResponseMessage,
+};
 use serenity::async_trait;
-use serenity::model::application::interaction::{Interaction, InteractionResponseType};
-// #[cfg(test)]
-// use serenity::model::application::command::Command;
+use serenity::model::application::Interaction;
 use serenity::model::gateway::Ready;
 use serenity::model::id::GuildId;
-use serenity::model::prelude::application::command::CommandOptionType;
 use serenity::model::prelude::*;
-use serenity::prelude::*;
+use serenity::prelude::{Client, Context, EventHandler};
 
 //std
 use std::error;
@@ -24,6 +29,8 @@ use std::fmt;
 mod builders;
 #[cfg(all(any(feature = "discord", feature = "full"), test))]
 pub mod builders;
+#[cfg(any(feature = "discord", feature = "full"))]
+use self::builders::discordembed::DiscordEmbed;
 
 #[doc(hidden)]
 mod cache;
@@ -32,22 +39,29 @@ mod commands;
 #[cfg(all(any(feature = "discord", feature = "full"), test))]
 pub mod commands;
 
+use lazy_static::lazy_static;
+
+lazy_static! {
+    pub static ref INTENTS: GatewayIntents = GatewayIntents::non_privileged()
+        | GatewayIntents::MESSAGE_CONTENT
+        | GatewayIntents::GUILD_MEMBERS
+        | GatewayIntents::GUILD_PRESENCES;
+}
+
 #[derive(Debug)]
 pub struct Handler(pub Config);
 
 #[async_trait]
 impl EventHandler for Handler {
     async fn interaction_create(&self, ctx: Context, interaction: Interaction) {
-        if let Interaction::ApplicationCommand(command) = interaction.clone() {
-            let context = ctx.clone();
-            let cache = context.cache;
+        if let Interaction::Command(command) = interaction.clone() {
             trace!("{:?}", &command.data);
             let opt: CommandInteraction = match command.data.options.get(0) {
                 Some(o) => (*o).clone().into(),
                 None => CommandInteraction {
                     name: "".to_string(),
-                    value: None,
-                    kind: CommandOptionType::Unknown,
+                    value: CommandDataOptionValue::Unknown(!0u8),
+                    kind: CommandOptionType::Unknown(!0u8),
                     options: vec![],
                     resolved: None,
                     focused: false,
@@ -55,35 +69,30 @@ impl EventHandler for Handler {
             };
             debug!("{:?}", &opt);
             let content = match command.data.name.as_str() {
-                "ping" => commands::ping::run(&opt, cache),
-                "id" => commands::id::run(&opt, cache),
-                _ => unimplemented!(),
+                "ping" => Some(commands::ping::run(&opt, &ctx).await),
+                "id" => Some(commands::id::run(&opt, &ctx).await),
+                _ => Some(DiscordEmbed::not_implimented()),
             };
 
-            if let Err(why) = command
-                .create_interaction_response(&context.http, |response| {
-                    response
-                        .kind(InteractionResponseType::ChannelMessageWithSource)
-                        .interaction_response_data(|message| message.set_embed(content))
-                })
-                .await
-            {
-                error!("Cannot respond to slash command: {why}");
+            if let Some(ref _why) = content {
+                let data = CreateInteractionResponseMessage::new().add_embed(content.expect(""));
+                let builder = CreateInteractionResponse::Message(data);
+                if let Err(why) = command.create_response(&ctx.http, builder).await {
+                    println!("Cannot respond to slash command: {why}");
+                }
             }
         }
     }
 
     async fn ready<'a>(&'a self, ctx: Context, ready: Ready) {
         info!("{} is connected!", ready.user.name);
-        let gid =
-            GuildId(self.0.discord_guildid.clone().parse().expect("guildid must be an integer"));
+        let gid = GuildId::new(
+            self.0.discord_guildid.clone().parse().expect("guildid must be an integer"),
+        );
 
-        let commands = GuildId::set_application_commands(&gid, &ctx.http, |commands| {
-            commands
-                .create_application_command(|command| commands::ping::register(command))
-                .create_application_command(|command| commands::id::register(command))
-        })
-        .await;
+        let commands = gid
+            .set_commands(&ctx.http, vec![commands::ping::register(), commands::id::register()])
+            .await;
         let mut vec_commands = Vec::new();
         let _ = commands.unwrap().drain(..).for_each(|c| vec_commands.push(c.name));
         info!("I now have the following guild slash commands: {:?}", vec_commands);
@@ -93,7 +102,7 @@ impl EventHandler for Handler {
     ///<pre>[Channel] Author: Message</pre>
     async fn message<'a>(&'a self, ctx: Context, msg: Message) {
         let channel_name: String = match ctx.cache.guild_channel(msg.channel_id) {
-            Some(channel) => channel.name,
+            Some(channel) => channel.name.clone(),
             None => return,
         };
         println!("[Discord / #{}] {}: {}", channel_name, msg.author.name, msg.content);
@@ -145,15 +154,15 @@ impl From<serenity::Error> for DiscordErr {
 pub async fn new(config: Config) -> Result<Handler, serenity::Error> {
     let dt = config.discord_token.clone();
 
-    let intents: GatewayIntents = GatewayIntents::non_privileged()
-        | GatewayIntents::MESSAGE_CONTENT
-        | GatewayIntents::GUILD_MEMBERS
-        | GatewayIntents::GUILD_PRESENCES;
+    //let intents: GatewayIntents = GatewayIntents::non_privileged()
+    //    | GatewayIntents::MESSAGE_CONTENT
+    //    | GatewayIntents::GUILD_MEMBERS
+    //    | GatewayIntents::GUILD_PRESENCES;
 
     // mark these allows to not get a warning in tests::discord::it_works
     #[allow(unused_variables)]
     #[allow(unused_mut)]
-    let mut client: Client = Client::builder(dt, intents)
+    let mut client: Client = Client::builder(dt, *INTENTS)
         .event_handler(Handler(config.clone()))
         .await
         .expect("Error creating client");
@@ -178,6 +187,14 @@ fn default_config() -> std::result::Result<Handler, serenity::Error> {
     std::result::Result::Ok(Handler(Config::default()))
 }
 
+#[cfg(all(any(feature = "discord", feature = "full"), test))]
+#[derive(Debug, Serialize)]
+pub(self) struct TestShardInfo {
+    #[serde(with = "test_shard_info_serde")]
+    pub id: ShardId,
+    pub total: u32,
+}
+
 #[cfg(test)]
 pub mod tests {
     use super::*;
@@ -185,25 +202,62 @@ pub mod tests {
     use crate::utils::json::prelude::from_str;
     use crate::StdResult;
     use error::Error;
-    use futures::channel::mpsc::unbounded;
     use serde::{Deserialize, Serialize};
-    use serenity::{
-        cache::Cache, client::bridge::gateway::ShardMessenger, http::Http,
-        model::application::interaction::application_command::ApplicationCommandInteraction,
-        model::channel::ChannelType as SerenityChannelType,
+    use serenity::all::{
+        Cache, ChannelType as SerenityChannelType, CommandInteraction, Http, Shard, ShardId,
+        ShardManager, ShardManagerOptions, ShardMessenger, ShardRunner, ShardRunnerOptions,
     };
+    use serenity::prelude::{Mutex, RwLock, TypeMap};
     use std::hash::Hash;
     use std::sync::Arc;
-    use tokio::sync::RwLock;
-    use typemap_rev::TypeMap;
 
     #[tokio::test]
     async fn handler_interaction_create() {
-        let sender = unbounded().0;
+        let cache = Cache::new();
+        let c = Arc::new(cache);
+        let token = Config::new().discord_token;
+        let http = Arc::new(Http::new(&token));
+        let manager_options = ShardManagerOptions {
+            data: Arc::new(RwLock::new(TypeMap::new())),
+            event_handlers: vec![],
+            raw_event_handlers: vec![],
+            shard_index: 0u32,
+            shard_init: 0u32,
+            shard_total: 1u32,
+            ws_url: Default::default(),
+            cache: c.clone(),
+            http: http.clone(),
+            intents: GatewayIntents::default(),
+            presence: None,
+        };
+        let manager = ShardManager::new(manager_options);
+        let shard_id = *manager.0.runners.lock().await.keys().next().expect("");
+        let test_shard_info = TestShardInfo { id: shard_id, total: 1u32 };
+        let test_shard_info_string = serde_json::to_string(&test_shard_info).expect("");
+        let shard_info: ShardInfo = serde_json::from_str(&test_shard_info_string).expect("");
+        let shard = Shard::new(
+            Arc::new(Mutex::new(String::from(""))),
+            "",
+            shard_info,
+            GatewayIntents::default(),
+            None,
+        )
+        .await
+        .expect("");
+        let runner_options = ShardRunnerOptions {
+            data: Default::default(),
+            event_handlers: vec![],
+            raw_event_handlers: vec![],
+            manager: manager.0,
+            shard,
+            cache: c,
+            http,
+        };
+        let runner = ShardRunner::new(runner_options);
         let handler_context = Context {
             data: Arc::new(RwLock::new(TypeMap::new())),
-            shard: ShardMessenger::new(sender),
-            shard_id: 0_64,
+            shard: ShardMessenger::new(&runner),
+            shard_id: ShardId(0_u32),
             http: Arc::new(Http::new("")),
             cache: Arc::new(Cache::new()),
         };
@@ -318,17 +372,15 @@ pub mod tests {
             }
         "#;
         //ping
-        let handler_interaction_command_ping: ApplicationCommandInteraction =
+        let handler_interaction_command_ping: CommandInteraction =
             from_str(handler_interaction_command_ping_str).unwrap();
-        let handler_interaction_ping =
-            Interaction::ApplicationCommand(handler_interaction_command_ping);
+        let handler_interaction_ping = Interaction::Command(handler_interaction_command_ping);
         let _ = handler.interaction_create(handler_context.clone(), handler_interaction_ping).await;
         //id
-        let handler_interaction_command_id: ApplicationCommandInteraction =
+        let handler_interaction_command_id: CommandInteraction =
             from_str(handler_interaction_command_id_str).unwrap();
         dbg!(&handler_interaction_command_id);
-        let handler_interaction_id =
-            Interaction::ApplicationCommand(handler_interaction_command_id);
+        let handler_interaction_id = Interaction::Command(handler_interaction_command_id);
         dbg!(&handler_interaction_id);
         let _ = handler.interaction_create(handler_context, handler_interaction_id).await;
     }
@@ -336,11 +388,51 @@ pub mod tests {
     #[tokio::test]
     #[should_panic]
     async fn handler_interaction_create_unimplemented() {
-        let sender = unbounded().0;
+        let cache = Cache::new();
+        let c = Arc::new(cache);
+        let token = Config::new().discord_token;
+        let http = Arc::new(Http::new(&token));
+        let manager_options = ShardManagerOptions {
+            data: Arc::new(RwLock::new(TypeMap::new())),
+            event_handlers: vec![],
+            raw_event_handlers: vec![],
+            shard_index: 0u32,
+            shard_init: 0u32,
+            shard_total: 1u32,
+            ws_url: Default::default(),
+            cache: c.clone(),
+            http: http.clone(),
+            intents: GatewayIntents::default(),
+            presence: None,
+        };
+        let manager = ShardManager::new(manager_options);
+        let shard_id = *manager.0.runners.lock().await.keys().next().expect("");
+        let test_shard_info = TestShardInfo { id: shard_id, total: 1u32 };
+        let test_shard_info_string = serde_json::to_string(&test_shard_info).expect("");
+        let shard_info: ShardInfo = serde_json::from_str(&test_shard_info_string).expect("");
+        let shard = Shard::new(
+            Arc::new(Mutex::new(String::from(""))),
+            "",
+            shard_info,
+            GatewayIntents::default(),
+            None,
+        )
+        .await
+        .expect("");
+        let runner_options = ShardRunnerOptions {
+            data: Default::default(),
+            event_handlers: vec![],
+            raw_event_handlers: vec![],
+            manager: manager.0,
+            shard,
+            cache: c,
+            http,
+        };
+        let runner = ShardRunner::new(runner_options);
         let handler_context = Context {
             data: Arc::new(RwLock::new(TypeMap::new())),
-            shard: ShardMessenger::new(sender),
-            shard_id: 0_64,
+            shard: ShardMessenger::new(&runner),
+            shard_id: ShardId(0_u32),
             http: Arc::new(Http::new("")),
             cache: Arc::new(Cache::new()),
         };
@@ -390,10 +482,9 @@ pub mod tests {
             }
         "#;
         //unimplemented
-        let handler_interaction_command_never: ApplicationCommandInteraction =
+        let handler_interaction_command_never: CommandInteraction =
             from_str(handler_interaction_command_never_str).unwrap();
-        let handler_interaction_never =
-            Interaction::ApplicationCommand(handler_interaction_command_never);
+        let handler_interaction_never = Interaction::Command(handler_interaction_command_never);
         let _ = handler.interaction_create(handler_context, handler_interaction_never).await;
     }
 
@@ -410,7 +501,8 @@ pub mod tests {
         PrivateThread = 12,
         Stage = 13,
         Directory = 14,
-        Unknown = !0,
+        Forum = 15,
+        Unknown(u8),
     }
 
     impl Default for ChannelType {
@@ -432,7 +524,8 @@ pub mod tests {
                 SerenityChannelType::PrivateThread => ChannelType::PrivateThread,
                 SerenityChannelType::Stage => ChannelType::Stage,
                 SerenityChannelType::Directory => ChannelType::Directory,
-                SerenityChannelType::Unknown => ChannelType::Unknown,
+                SerenityChannelType::Forum => ChannelType::Forum,
+                SerenityChannelType::Unknown(u) => ChannelType::Unknown(u),
                 _ => unimplemented!("Unknown type {value:?}"),
             };
             chantype
@@ -441,11 +534,51 @@ pub mod tests {
 
     #[tokio::test]
     async fn handler_message() {
-        let sender = unbounded().0;
+        let cache = Cache::new();
+        let c = Arc::new(cache);
+        let token = Config::new().discord_token;
+        let http = Arc::new(Http::new(&token));
+        let manager_options = ShardManagerOptions {
+            data: Arc::new(RwLock::new(TypeMap::new())),
+            event_handlers: vec![],
+            raw_event_handlers: vec![],
+            shard_index: 0u32,
+            shard_init: 0u32,
+            shard_total: 1u32,
+            ws_url: Default::default(),
+            cache: c.clone(),
+            http: http.clone(),
+            intents: GatewayIntents::default(),
+            presence: None,
+        };
+        let manager = ShardManager::new(manager_options);
+        let shard_id = *manager.0.runners.lock().await.keys().next().expect("");
+        let test_shard_info = TestShardInfo { id: shard_id, total: 1u32 };
+        let test_shard_info_string = serde_json::to_string(&test_shard_info).expect("");
+        let shard_info: ShardInfo = serde_json::from_str(&test_shard_info_string).expect("");
+        let shard = Shard::new(
+            Arc::new(Mutex::new(String::from(""))),
+            "",
+            shard_info,
+            GatewayIntents::default(),
+            None,
+        )
+        .await
+        .expect("");
+        let runner_options = ShardRunnerOptions {
+            data: Default::default(),
+            event_handlers: vec![],
+            raw_event_handlers: vec![],
+            manager: manager.0,
+            shard,
+            cache: c,
+            http,
+        };
+        let runner = ShardRunner::new(runner_options);
         let handler_context = Context {
             data: Arc::new(RwLock::new(TypeMap::new())),
-            shard: ShardMessenger::new(sender),
-            shard_id: 0_64,
+            shard: ShardMessenger::new(&runner),
+            shard_id: ShardId(0_u32),
             http: Arc::new(Http::new("")),
             cache: Arc::new(Cache::new()),
         };

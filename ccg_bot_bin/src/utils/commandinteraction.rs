@@ -3,25 +3,22 @@
 //! [application_command]: serenity::model::application::interaction::application_command
 
 //crate
-use crate::utils::json::prelude::*;
 use crate::StdResult;
 //serde
-use serde::de::{Deserializer, Error as DeError};
+use serde::ser::{Error as SerError, SerializeStructVariant};
 use serde::{Deserialize, Serialize};
 
 //serenity
-use serenity::json::JsonMap;
-use serenity::model::prelude::command::CommandOptionType;
+use serenity::all::{
+    AttachmentId, ChannelId, Color, CommandOptionType, CommandType, RoleId, UserId,
+};
 use serenity::model::{
-    application::interaction::application_command::{CommandDataOption, CommandDataOptionValue},
+    application::{CommandDataOption, CommandDataOptionValue},
     channel::ChannelType,
     channel::{Attachment as SerenityAttachment, PartialChannel as SerenityPartialChannel},
-    guild::{PartialMember, Role as SerenityRole, RoleTags as SerenityRoleTags},
-    prelude::command::CommandType,
-    user::User,
+    guild::{Role as SerenityRole, RoleTags as SerenityRoleTags},
     Permissions,
 };
-use serenity::utils::Color;
 
 ///Reimplimentation of Serenity's [CommandType] as it was non_exhaustive
 #[derive(Copy, Clone, Debug, Hash, Eq, PartialEq, PartialOrd, Ord)]
@@ -41,23 +38,23 @@ impl From<CommandType> for LocalCommandType {
             CommandType::ChatInput => LocalCommandType::ChatInput,
             CommandType::User => LocalCommandType::User,
             CommandType::Message => LocalCommandType::Message,
-            CommandType::Unknown => LocalCommandType::Unknown,
+            CommandType::Unknown(_) => LocalCommandType::Unknown,
             _ => unimplemented!(),
         }
     }
 }
 
 ///Reimplimentation of Serenity's [CommandDataOptionValue] as it was non_exhaustive
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub enum CommandInteractionResolved {
     String(String),
     Integer(i64),
     Boolean(bool),
-    User(User, Option<PartialMember>),
-    Channel(PartialChannel),
-    Role(Role),
+    User(UserId),
+    Channel(ChannelId),
+    Role(RoleId),
     Number(f64),
-    Attachment(Attachment),
+    Attachment(AttachmentId),
 }
 
 impl From<CommandDataOptionValue> for CommandInteractionResolved {
@@ -66,25 +63,24 @@ impl From<CommandDataOptionValue> for CommandInteractionResolved {
             CommandDataOptionValue::String(s) => CommandInteractionResolved::String(s),
             CommandDataOptionValue::Integer(i) => CommandInteractionResolved::Integer(i),
             CommandDataOptionValue::Boolean(b) => CommandInteractionResolved::Boolean(b),
-            CommandDataOptionValue::User(u, pm) => CommandInteractionResolved::User(u, pm),
-            CommandDataOptionValue::Channel(pc) => CommandInteractionResolved::Channel(pc.into()),
-            CommandDataOptionValue::Role(r) => CommandInteractionResolved::Role(r.into()),
+            CommandDataOptionValue::User(uid) => CommandInteractionResolved::User(uid),
+            CommandDataOptionValue::Channel(pc) => CommandInteractionResolved::Channel(pc),
+            CommandDataOptionValue::Role(r) => CommandInteractionResolved::Role(r),
             CommandDataOptionValue::Number(f) => CommandInteractionResolved::Number(f),
-            CommandDataOptionValue::Attachment(a) => {
-                CommandInteractionResolved::Attachment(a.into())
-            },
+            CommandDataOptionValue::Attachment(a) => CommandInteractionResolved::Attachment(a),
             _ => unimplemented!(),
         }
     }
 }
 
 ///Reimplimentation of Serenity's [CommandDataOption] as it was non_exhaustive
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct CommandInteraction {
     /// The name of the parameter.
     pub name: String,
     /// The given value.
-    pub value: Option<Value>,
+    #[serde(serialize_with = "serialize_cdov", skip_deserializing, default = "default_cdov")]
+    pub value: CommandDataOptionValue,
     /// The value type.
     #[serde(rename = "type")]
     pub kind: CommandOptionType,
@@ -103,17 +99,40 @@ pub struct CommandInteraction {
     pub focused: bool,
 }
 
+impl std::fmt::Display for CommandInteraction {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}, {:?}, {:?}, {:?}, {:?}, {}",
+            self.name, self.value, self.kind, self.options, self.resolved, self.focused
+        )
+    }
+}
+
+pub(crate) fn default_cdov() -> CommandDataOptionValue {
+    CommandDataOptionValue::Unknown(!0u8)
+}
+
+/*
 impl<'de> Deserialize<'de> for CommandInteraction {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> StdResult<Self, D::Error> {
         let mut map = JsonMap::deserialize(deserializer)?;
 
         let name = map
             .remove("name")
-            .ok_or_else(|| DeError::custom("expected value"))
+            .ok_or_else(|| DeError::custom("expected String"))
             .and_then(String::deserialize)
             .map_err(DeError::custom)?;
 
-        let value = map.remove("value");
+        let value = map
+            .remove("value")
+            .ok_or_else(|| DeError::custom("expected CommandOptionValue variant"))
+            .and_then(CommandInteractionResolved::deserialize)
+            .and_then(|s| serde_json::to_string(&s))
+            .and_then(|l| serde_json::from_str(&l))
+            .map_err(DeError::custom)?;
+
+        debug!("{:?}", &value);
 
         let kind = map
             .remove("type")
@@ -133,21 +152,142 @@ impl<'de> Deserialize<'de> for CommandInteraction {
             None => false,
         };
 
-        Ok(Self { name, value, kind, options, resolved: None, focused })
+        Ok(Self {
+            name,
+            value: CommandDataOptionValue::Unknown(!0u8),
+            kind,
+            options,
+            resolved: None,
+            focused,
+        })
+    }
+}
+*/
+
+impl Serialize for CommandInteractionResolved {
+    fn serialize<S>(&self, serializer: S) -> StdResult<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        match self {
+            CommandInteractionResolved::String(s) => serializer.serialize_str(s.as_str()),
+            CommandInteractionResolved::Integer(i) => serializer.serialize_i64(*i),
+            CommandInteractionResolved::Boolean(b) => serializer.serialize_bool(*b),
+            // Since serenity uses a NonZeroU64 instead of a standard u64
+            CommandInteractionResolved::User(u) => serializer.serialize_u64(u.get()),
+            // Since serenity uses a NonZeroU64 instead of a standard u64
+            CommandInteractionResolved::Channel(c) => serializer.serialize_u64(c.get()),
+            // Since serenity uses a NonZeroU64 instead of a standard u64
+            CommandInteractionResolved::Role(r) => serializer.serialize_u64(r.get()),
+            CommandInteractionResolved::Number(n) => serializer.serialize_f64(*n),
+            // Since serenity uses a NonZeroU64 instead of a standard u64
+            CommandInteractionResolved::Attachment(a) => serializer.serialize_u64(a.get()),
+        }
+    }
+}
+
+pub(crate) fn serialize_cdov<S>(
+    cdov: &CommandDataOptionValue,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    match *cdov {
+        CommandDataOptionValue::Autocomplete { ref kind, ref value } => {
+            let mut state = serializer.serialize_struct_variant(
+                "CommandDataOptionValue",
+                0u32,
+                "Autocomplete",
+                2,
+            )?;
+            state.serialize_field("kind", kind)?;
+            state.serialize_field("value", value)?;
+            state.end()
+        },
+        CommandDataOptionValue::Boolean(ref b) => {
+            serializer.serialize_newtype_variant("CommandDataOptionValue", 1u32, "Boolean", b)
+        },
+        CommandDataOptionValue::Integer(ref i) => {
+            serializer.serialize_newtype_variant("CommandDataOptionValue", 2u32, "Integer", i)
+        },
+        CommandDataOptionValue::Number(ref n) => {
+            serializer.serialize_newtype_variant("CommandDataOptionValue", 3u32, "Number", n)
+        },
+        CommandDataOptionValue::String(ref s) => {
+            serializer.serialize_newtype_variant("CommandDataOptionValue", 4u32, "String", s)
+        },
+        CommandDataOptionValue::SubCommand(ref sc) => {
+            serializer.serialize_newtype_variant("CommandDataOptionValue", 5u32, "SubCommand", sc)
+        },
+        CommandDataOptionValue::SubCommandGroup(ref scg) => serializer.serialize_newtype_variant(
+            "CommandDataOptionValue",
+            6u32,
+            "SubCommandGroup",
+            scg,
+        ),
+        CommandDataOptionValue::Attachment(ref a) => {
+            serializer.serialize_newtype_variant("CommandDataOptionValue", 7u32, "Attachment", a)
+        },
+        CommandDataOptionValue::Channel(ref c) => {
+            serializer.serialize_newtype_variant("CommandDataOptionValue", 8u32, "Channel", c)
+        },
+        CommandDataOptionValue::Mentionable(ref m) => {
+            serializer.serialize_newtype_variant("CommandDataOptionValue", 9u32, "Mentionable", m)
+        },
+        CommandDataOptionValue::Role(ref r) => {
+            serializer.serialize_newtype_variant("CommandDataOptionValue", 10u32, "Role", r)
+        },
+        CommandDataOptionValue::User(ref u) => {
+            serializer.serialize_newtype_variant("CommandDataOptionValue", 11u32, "User", u)
+        },
+        CommandDataOptionValue::Unknown(ref ukn) => {
+            serializer.serialize_newtype_variant("CommandDataOptionValue", 12u32, "Unknown", ukn)
+        },
+        _ => Err(SerError::custom("Unable to serialize CommandDataOptionValue")),
+    }
+}
+
+pub(crate) mod snowflake {
+    use serde::de::{Error, Visitor};
+    use serde::{Deserializer, Serializer};
+    use std::convert::TryFrom;
+    use std::fmt;
+    use std::num::NonZeroU64;
+    pub fn deserialize<'de, D: Deserializer<'de>>(deserializer: D) -> Result<NonZeroU64, D::Error> {
+        deserializer.deserialize_any(SnowflakeVisitor)
+    }
+    #[allow(clippy::trivially_copy_pass_by_ref)]
+    pub fn serialize<S: Serializer>(id: &NonZeroU64, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.collect_str(&id.get())
+    }
+    struct SnowflakeVisitor;
+    impl<'de> Visitor<'de> for SnowflakeVisitor {
+        type Value = NonZeroU64;
+        fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+            formatter.write_str("a non-zero string or integer snowflake")
+        }
+        fn visit_i64<E: Error>(self, value: i64) -> Result<Self::Value, E> {
+            self.visit_u64(u64::try_from(value).map_err(Error::custom)?)
+        }
+        fn visit_u64<E: Error>(self, value: u64) -> Result<Self::Value, E> {
+            NonZeroU64::new(value).ok_or_else(|| Error::custom("invalid value, expected non-zero"))
+        }
+        fn visit_str<E: Error>(self, value: &str) -> Result<Self::Value, E> {
+            value.parse().map_err(Error::custom)
+        }
     }
 }
 
 impl From<CommandDataOption> for CommandInteraction {
     fn from(cdo: CommandDataOption) -> CommandInteraction {
-        let opts: Vec<CommandInteraction> = cdo.options.into_iter().map(|o| o.into()).collect();
-        let res: Option<CommandInteractionResolved> = cdo.resolved.map(|r| r.into());
         Self {
-            name: cdo.name,
-            value: cdo.value,
-            kind: cdo.kind,
-            options: opts,
-            resolved: res,
-            focused: cdo.focused,
+            name: cdo.name.clone(),
+            value: cdo.value.clone(),
+            kind: cdo.kind(),
+            options: vec![],
+            resolved: None,
+            focused: false,
         }
     }
 }
@@ -162,11 +302,11 @@ pub fn is_false(v: &bool) -> bool {
 pub struct Attachment {
     pub id: serenity::model::id::AttachmentId,
     pub filename: String,
-    pub height: Option<u64>,
+    pub height: Option<u32>,
     pub proxy_url: String,
-    pub size: u64,
+    pub size: u32,
     pub url: String,
-    pub width: Option<u64>,
+    pub width: Option<u32>,
     pub content_type: Option<String>,
     #[serde(default, skip_serializing_if = "is_false")]
     pub ephemeral: bool,
@@ -202,7 +342,7 @@ pub struct Role {
     pub name: String,
     #[serde(default)]
     pub permissions: Permissions,
-    pub position: i64,
+    pub position: u16,
     #[serde(default)]
     pub tags: RoleTags,
     pub icon: Option<String>,
@@ -298,7 +438,7 @@ impl Default for PartialChannel {
         Self {
             id: serenity::model::id::ChannelId::default(),
             name: Some(String::default()),
-            kind: ChannelType::Unknown,
+            kind: ChannelType::Unknown(!0u8),
             permissions: Some(Permissions::default()),
         }
     }
@@ -314,12 +454,47 @@ impl From<SerenityPartialChannel> for PartialChannel {
 mod tests {
     use super::*;
     use crate::tests::discord::TestUser;
-    use serenity::model::prelude::command::CommandOptionType;
+    use crate::utils::prelude::prelude::{from_str, to_string};
+    use serenity::all::{CommandOptionType, User};
     use serenity::model::{
         channel::{Attachment as SerenityAttachment, PartialChannel as SerenityPartialChannel},
         guild::Role as SerenityRole,
     };
     use std::hash::Hash;
+
+    mod command_interaction_serde {
+        use super::CommandInteraction;
+        use std::fmt;
+
+        use serde::de::Visitor;
+        use serde::{Deserializer, Serializer};
+
+        pub fn deserialize<'de, D: Deserializer<'de>>(
+            deserializer: D,
+        ) -> Result<CommandInteraction, D::Error> {
+            deserializer.deserialize_any(CommandInteractionVisitor)
+        }
+
+        #[allow(clippy::trivially_copy_pass_by_ref)]
+        pub fn serialize<S: Serializer>(
+            id: &CommandInteraction,
+            serializer: S,
+        ) -> Result<S::Ok, S::Error> {
+            serializer.collect_str(&id)
+        }
+
+        struct CommandInteractionVisitor;
+
+        impl<'de> Visitor<'de> for CommandInteractionVisitor {
+            type Value = CommandInteraction;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+                formatter.write_str("a valid CommandInteraction Struct")
+            }
+
+            //fn visit_() -> Result<Value, Error>{}
+        }
+    }
 
     #[test]
     fn derives_on_attachment() {
@@ -417,7 +592,7 @@ mod tests {
         let _: LocalCommandType = LocalCommandType::from(upstream);
         let upstream: CommandType = CommandType::ChatInput;
         let _: LocalCommandType = LocalCommandType::from(upstream);
-        let upstream: CommandType = CommandType::Unknown;
+        let upstream: CommandType = CommandType::Unknown(!0u8);
         let _: LocalCommandType = LocalCommandType::from(upstream);
     }
 
@@ -438,15 +613,15 @@ mod tests {
             from_str::<SerenityPartialChannel>(&to_string(&PartialChannel::default()).unwrap())
                 .unwrap();
         let role = from_str::<SerenityRole>(&to_string(&Role::default()).unwrap()).unwrap();
-        let upstream_user: CommandDataOptionValue = CommandDataOptionValue::User(user, None);
+        let upstream_user: CommandDataOptionValue = CommandDataOptionValue::User(user.id);
         let upstream_string: CommandDataOptionValue =
             CommandDataOptionValue::String("Test".to_string());
         let upstream_int: CommandDataOptionValue = CommandDataOptionValue::Integer(1_i64);
         let upstream_bool: CommandDataOptionValue = CommandDataOptionValue::Boolean(false);
         let upstream_num: CommandDataOptionValue = CommandDataOptionValue::Number(1.0_f64);
-        let upstream_pc: CommandDataOptionValue = CommandDataOptionValue::Channel(chan);
-        let upstream_attach: CommandDataOptionValue = CommandDataOptionValue::Attachment(attach);
-        let upstream_role: CommandDataOptionValue = CommandDataOptionValue::Role(role);
+        let upstream_pc: CommandDataOptionValue = CommandDataOptionValue::Channel(chan.id);
+        let upstream_attach: CommandDataOptionValue = CommandDataOptionValue::Attachment(attach.id);
+        let upstream_role: CommandDataOptionValue = CommandDataOptionValue::Role(role.id);
         let _: CommandInteractionResolved = CommandInteractionResolved::from(upstream_user);
         let _: CommandInteractionResolved = CommandInteractionResolved::from(upstream_string);
         let _: CommandInteractionResolved = CommandInteractionResolved::from(upstream_int);
@@ -463,7 +638,7 @@ mod tests {
             CommandInteractionResolved::from(CommandDataOptionValue::String("Test".to_string()));
         let test_interaction: CommandInteraction = CommandInteraction {
             name: "".to_string(),
-            value: None,
+            value: CommandDataOptionValue::String(Default::default()),
             kind: CommandOptionType::String,
             options: vec![],
             resolved: Some(test_resolved),
@@ -479,7 +654,7 @@ mod tests {
     fn impl_from_commanddataoption_for_commandinteraction() {
         let test_ci = CommandInteraction {
             name: "".to_string(),
-            value: None,
+            value: CommandDataOptionValue::String(Default::default()),
             kind: CommandOptionType::String,
             options: vec![],
             resolved: None,

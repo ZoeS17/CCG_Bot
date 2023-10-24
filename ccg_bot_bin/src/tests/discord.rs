@@ -1,18 +1,21 @@
+use crate::config::Config;
 //crate
 use crate::discord::builders::discordembed::DiscordEmbed;
 use crate::utils::commandinteraction::{CommandInteraction, CommandInteractionResolved};
-use crate::utils::json::prelude::{from_str, hashmap_to_json_map, json, to_string, Value};
-
-//dashmap
-use dashmap::mapref::entry::Entry;
+use crate::utils::json::prelude::{createembed_to_json_map, from_str, to_string, Value};
 
 //serde
 use serde::{Deserialize, Serialize};
 
 //serenity
-use serenity::cache::{Cache, CacheUpdate};
+use serenity::all::{Color, CommandOptionType, CreateEmbedAuthor, Shard, ShardId, ShardInfo};
+use serenity::cache::Cache;
+use serenity::client::Context;
+use serenity::gateway::{
+    ShardManager, ShardManagerOptions, ShardMessenger, ShardRunner, ShardRunnerOptions,
+};
+use serenity::http::Http;
 use serenity::model::{
-    application::command::CommandOptionType,
     channel::{Attachment, PartialChannel},
     event::UserUpdateEvent as SerenityUserUpdateEvent,
     guild::{PartialMember, Role},
@@ -20,7 +23,10 @@ use serenity::model::{
     user::{User as SerenityUser, UserPublicFlags},
     Permissions, Timestamp,
 };
-use serenity::utils::Color;
+use serenity::prelude::{GatewayIntents, RwLock, TypeMap};
+
+//tokio
+use tokio::sync::Mutex;
 
 //std
 use std::sync::Arc;
@@ -64,6 +70,55 @@ pub struct User {
 impl User {
     fn face(&self) -> String {
         self.clone().avatar
+    }
+}
+#[derive(Debug, Serialize)]
+pub(self) struct TestShardInfo {
+    #[serde(with = "test_shard_info_serde")]
+    pub id: ShardId,
+    pub total: u32,
+}
+
+pub(crate) mod test_shard_info_serde {
+    use super::ShardId;
+    use std::fmt;
+
+    use serde::de::{Error, Visitor};
+    use serde::{Deserializer, Serializer};
+
+    pub fn deserialize<'de, D: Deserializer<'de>>(deserializer: D) -> Result<ShardId, D::Error> {
+        deserializer.deserialize_any(TestShardInfoVisitor)
+    }
+
+    #[allow(clippy::trivially_copy_pass_by_ref)]
+    pub fn serialize<S: Serializer>(id: &ShardId, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.collect_str(&id)
+    }
+
+    struct TestShardInfoVisitor;
+
+    impl TestShardInfoVisitor {
+        pub fn get_inner(outer: ShardId) -> u32 {
+            outer.0
+        }
+    }
+
+    impl<'de> Visitor<'de> for TestShardInfoVisitor {
+        type Value = ShardId;
+
+        fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+            formatter.write_str("a valid u32")
+        }
+
+        fn visit_u32<E: Error>(self, value: u32) -> Result<Self::Value, E> {
+            Ok(ShardId(value))
+        }
+
+        fn visit_str<E: Error>(self, value: &str) -> Result<Self::Value, E> {
+            let fuckme = value;
+            dbg!(fuckme);
+            Ok(ShardId(0_u32))
+        }
     }
 }
 
@@ -135,10 +190,10 @@ impl From<PartialMember> for PM {
     }
 }
 
-#[test]
-fn id_command() {
+#[tokio::test]
+async fn id_command() {
     use super::super::discord::commands::id;
-    let cache = Cache::new();
+    use serenity::all::Context;
     let s_pm = from_str::<PartialMember>(
         &to_string(&PM {
             deaf: false,
@@ -155,24 +210,70 @@ fn id_command() {
         .unwrap(),
     );
 
-    let pm = s_pm.as_ref();
     let user = TestUser::default();
-
     let user_str = to_string(&user).unwrap();
     let user_cast = from_str::<SerenityUser>(&user_str).unwrap();
-    let resolved_obj = CommandInteractionResolved::User(user_cast, pm.ok().cloned());
+    let resolved_obj = CommandInteractionResolved::User(user_cast.id);
     let test_ci = CommandInteraction {
         name: "id".to_string(),
-        value: Some(Value::from(TestUser::default().id.to_string())),
+        //value: Value::from(TestUser::default().id.to_string()),
+        value: serenity::all::CommandDataOptionValue::User(user_cast.id),
         kind: CommandOptionType::User,
         options: vec![],
         resolved: Some(resolved_obj),
         focused: false,
     };
     let options = test_ci;
+    let cache = Cache::new();
     let c = Arc::new(cache);
     let c_clone = &*Arc::try_unwrap(c.clone()).unwrap_err();
-    let run = id::run(&options, c);
+    let token = Config::new().discord_token;
+    let http = Arc::new(Http::new(&token));
+    let manager_options = ShardManagerOptions {
+        data: Arc::new(RwLock::new(TypeMap::new())),
+        event_handlers: vec![],
+        raw_event_handlers: vec![],
+        shard_index: 0u32,
+        shard_init: 0u32,
+        shard_total: 1u32,
+        ws_url: Default::default(),
+        cache: c.clone(),
+        http: http.clone(),
+        intents: GatewayIntents::default(),
+        presence: None,
+    };
+    let manager = ShardManager::new(manager_options);
+    let shard_id = *manager.0.runners.lock().await.keys().next().expect("");
+    let test_shard_info = TestShardInfo { id: shard_id, total: 1u32 };
+    let test_shard_info_string = serde_json::to_string(&test_shard_info).expect("");
+    let shard_info: ShardInfo = serde_json::from_str(&test_shard_info_string).expect("");
+    let shard = Shard::new(
+        Arc::new(Mutex::new(String::from(""))),
+        "",
+        shard_info,
+        GatewayIntents::default(),
+        None,
+    )
+    .await
+    .expect("");
+    let runner_options = ShardRunnerOptions {
+        data: Default::default(),
+        event_handlers: vec![],
+        raw_event_handlers: vec![],
+        manager: manager.0,
+        shard,
+        cache: c.clone(),
+        http: http.clone(),
+    };
+    let runner = ShardRunner::new(runner_options);
+    let context = Context {
+        data: Default::default(),
+        http,
+        cache: c.clone(),
+        shard: ShardMessenger::new(&runner),
+        shard_id,
+    };
+    let run = id::run(&options, &context);
     let mut roles = format!(
         "{:?}",
         s_pm.ok()
@@ -185,7 +286,7 @@ fn id_command() {
     roles.retain(|c| c != '[');
     roles.retain(|c| c != ']');
     roles.retain(|c| c != '"');
-    let mut embed = DiscordEmbed::new()
+    let embed = DiscordEmbed::new()
         .field("id", format!("`{}`", user.id), true)
         .field("name", format!("`{}`", user.name), true)
         .field("mention", format!("<@{}>", user.id), true)
@@ -194,31 +295,81 @@ fn id_command() {
         .color(Color::new(0x500060_u32))
         .title(format!("{}'s info (w/ guild roles)", user.name))
         .build();
-    embed.author(|a| a.name("".to_string()).url(cdn!("/embed/avatars/0.png").to_string()));
-    assert_eq!(Value::from(hashmap_to_json_map(run.0)), Value::from(hashmap_to_json_map(embed.0)));
+    let author =
+        CreateEmbedAuthor::new("".to_string()).url(cdn!("/embed/avatars/0.png").to_string());
+    let embed = embed.clone().author(author);
+    assert_eq!(
+        Value::from(createembed_to_json_map(run.await)),
+        Value::from(createembed_to_json_map(embed))
+    );
 }
 
-#[test]
-fn id_command_no_member() {
+#[tokio::test]
+async fn id_command_no_member() {
     use super::super::discord::commands::id;
-    let cache = Cache::new();
+    let cache = Arc::new(Cache::new());
     let user = TestUser::default();
     let user_str = to_string(&user).unwrap();
     let user_cast = from_str::<SerenityUser>(&user_str).unwrap();
-    let resolved_obj = CommandInteractionResolved::User(user_cast, None);
+    let resolved_obj = CommandInteractionResolved::User(user_cast.id);
     let test_ci = CommandInteraction {
         name: "id".to_string(),
-        value: Some(Value::from(TestUser::default().id.to_string())),
+        value: serenity::all::CommandDataOptionValue::User(user_cast.id),
         kind: CommandOptionType::User,
         options: vec![],
         resolved: Some(resolved_obj),
         focused: false,
     };
     let options = test_ci;
-    let c = Arc::new(cache);
-    let run = id::run(&options, c);
+    let token = Config::new().discord_token;
+    let http = Arc::new(Http::new(&token));
+    let manager_options = ShardManagerOptions {
+        data: Arc::new(RwLock::new(TypeMap::new())),
+        event_handlers: vec![],
+        raw_event_handlers: vec![],
+        shard_index: 0u32,
+        shard_init: 0u32,
+        shard_total: 1u32,
+        ws_url: Default::default(),
+        cache: cache.clone(),
+        http: http.clone(),
+        intents: GatewayIntents::default(),
+        presence: None,
+    };
+    let manager = ShardManager::new(manager_options);
+    let shard_id = *manager.0.runners.lock().await.keys().next().expect("");
+    let test_shard_info = TestShardInfo { id: shard_id, total: 1u32 };
+    let test_shard_info_string = serde_json::to_string(&test_shard_info).expect("");
+    let shard_info: ShardInfo = serde_json::from_str(&test_shard_info_string).expect("");
+    let shard = Shard::new(
+        Arc::new(Mutex::new(String::from(""))),
+        "",
+        shard_info,
+        GatewayIntents::default(),
+        None,
+    )
+    .await
+    .expect("");
+    let runner_options = ShardRunnerOptions {
+        data: Default::default(),
+        event_handlers: vec![],
+        raw_event_handlers: vec![],
+        manager: manager.0,
+        shard,
+        cache: cache.clone(),
+        http: http.clone(),
+    };
+    let runner = ShardRunner::new(runner_options);
+    let context = Context {
+        data: Default::default(),
+        shard: ShardMessenger::new(&runner),
+        shard_id: ShardId(0_u32),
+        http,
+        cache,
+    };
+    let run = id::run(&options, &context);
     let user = User { id: 0, name: "".to_string(), avatar: "0".to_string() };
-    let mut embed = DiscordEmbed::new()
+    let embed = DiscordEmbed::new()
         .field("id", format!("`{}`", user.id), true)
         .field("name", format!("`{}`", user.name), true)
         .field("mention", format!("<@{}>", user.id), true)
@@ -226,8 +377,13 @@ fn id_command_no_member() {
         .color(Color::new(0x500060_u32))
         .title(format!("{}'s info", user.name))
         .build();
-    embed.author(|a| a.name("".to_string()).url(cdn!("/embed/avatars/0.png").to_string()));
-    assert_eq!(Value::from(hashmap_to_json_map(run.0)), Value::from(hashmap_to_json_map(embed.0)));
+    let author =
+        CreateEmbedAuthor::new("".to_string()).url(cdn!("/embed/avatars/0.png").to_string());
+    let embed = embed.clone().author(author);
+    assert_eq!(
+        Value::from(createembed_to_json_map(run.await)),
+        Value::from(createembed_to_json_map(embed))
+    );
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -236,13 +392,15 @@ pub(crate) struct UserUpdateEvent {
 }
 
 // https://serenity-rs.github.io/serenity/current/serenity/cache/trait.CacheUpdate.html#examples
+/*
 pub(crate) struct TestUserUpdate {
-    user_avatar: Option<String>,
+    user_avatar: Option<serenity::all::ImageHash>,
     user_discriminator: u16,
     user_id: UserId,
     bot_user: bool,
     user_name: String,
 }
+
 
 // https://serenity-rs.github.io/serenity/current/serenity/cache/trait.CacheUpdate.html#examples
 impl CacheUpdate for TestUserUpdate {
@@ -251,13 +409,13 @@ impl CacheUpdate for TestUserUpdate {
 
     fn update(&mut self, cache: &Cache) -> Option<Self::Output> {
         // If an entry for the user already exists, update its fields.
-        match cache.users().entry(self.user_id) {
-            Entry::Occupied(entry) => {
-                let user: &mut serenity::model::prelude::User = &mut entry.get().to_owned();
+        match cache.users().get(&self.user_id) {
+            Some(entry) => {
+                let user: &mut serenity::model::prelude::User = &mut entry.to_owned();
                 let old_user = user.clone();
 
                 user.bot = self.bot_user;
-                user.discriminator = self.user_discriminator;
+                user.discriminator = NonZeroU16::new(self.user_discriminator);
                 user.id = self.user_id;
 
                 if user.avatar != self.user_avatar {
@@ -271,7 +429,7 @@ impl CacheUpdate for TestUserUpdate {
                 // Return the old copy for the user's sake.
                 Some(old_user)
             },
-            Entry::Vacant(entry) => {
+            None => {
                 // We can convert a [`serde_json::Value`] to a User for test
                 // purposes.
                 let user = serde_json::from_value::<SerenityUser>(json!({
@@ -283,7 +441,8 @@ impl CacheUpdate for TestUserUpdate {
                 }))
                 .expect("Error making user");
 
-                entry.insert(user);
+                let c = *cache;
+                let t: () = c;
 
                 // There was no old copy, so return None.
                 None
@@ -291,6 +450,7 @@ impl CacheUpdate for TestUserUpdate {
         }
     }
 }
+*/
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub(crate) struct CurrentUser {
@@ -311,19 +471,25 @@ pub(crate) struct CurrentUser {
 
 #[test]
 fn embed_builder() {
+    /*
     let cache = Cache::new();
     let _users = cache.users();
+
     let mut update_message = TestUserUpdate {
+
         user_avatar: Some(
             cdn!("/avatars/379001295744532481/072bcea1eedb39786002311d5619a398.webp?size=1024")
                 .to_string(),
         ),
+
+        user_avatar: Some("072bcea1eedb39786002311d5619a398".parse().expect("")),
         user_discriminator: 6349,
-        user_id: UserId(379001295744532481),
+        user_id: UserId::new(379001295744532481_u64),
         bot_user: true,
         user_name: "Courtesy Call Bot".to_string(),
     };
     cache.update(&mut update_message);
+    */
 
     let test_user_public_flags = Default::default();
     let user = User {
@@ -334,7 +500,7 @@ fn embed_builder() {
     };
     let user_update = UserUpdateEvent {
         current_user: CurrentUser {
-            id: UserId(user.id),
+            id: UserId::new(user.id),
             avatar: Some(user.face()),
             bot: true,
             discriminator: 6349,
@@ -349,7 +515,7 @@ fn embed_builder() {
     };
     let user_update_str = serde_json::json!(&user_update).to_string();
     let _test_user_update = serde_json::from_str::<SerenityUserUpdateEvent>(&user_update_str);
-    let mut embed = DiscordEmbed::new()
+    let embed = DiscordEmbed::new()
         .field("id", format!("`{}`", user.id), true)
         .field("name", format!("`{}`", user.name), true)
         .field("mention", format!("<@{}>", user.id), true)
@@ -357,27 +523,26 @@ fn embed_builder() {
         .color(Color::new(0x500060_u32))
         .title("Embed builder test")
         .build();
-    embed.author(|a| {
-        a.name("Courtesy Call Bot".to_string()).url(
-            cdn!("/avatars/379001295744532481/072bcea1eedb39786002311d5619a398.webp?size=1024")
-                .to_string(),
-        )
-    });
+    let author = CreateEmbedAuthor::new("Courtesy Call Bot".to_string()).url(
+        cdn!("/avatars/379001295744532481/072bcea1eedb39786002311d5619a398.webp?size=1024")
+            .to_string(),
+    );
+    let _ = embed.author(author);
     //Maybe add a deserialize embed with a serde_json::json!(embed) and a handcrafted
     //string inside an assert?
 }
 
-#[test]
-fn ping_comand() {
+#[tokio::test]
+async fn ping_comand() {
     use super::super::discord::commands::ping;
     let cache = Cache::new();
     let user = TestUser::default();
     let user_str = to_string(&user).unwrap();
     let user_cast = from_str::<SerenityUser>(&user_str).unwrap();
-    let resolved_obj = CommandInteractionResolved::User(user_cast, None);
+    let resolved_obj = CommandInteractionResolved::User(user_cast.id);
     let test_ci = CommandInteraction {
         name: "ping".to_string(),
-        value: Some(Value::from(TestUser::default().id.to_string())),
+        value: serenity::all::CommandDataOptionValue::User(TestUser::default().id),
         kind: CommandOptionType::User,
         options: vec![],
         resolved: Some(resolved_obj),
@@ -385,9 +550,55 @@ fn ping_comand() {
     };
     let options = test_ci;
     let c = Arc::new(cache);
-    let run = ping::run(&options, c);
+    let token = Config::new().discord_token;
+    let http = Arc::new(Http::new(&token));
+    let manager_options = ShardManagerOptions {
+        data: Arc::new(RwLock::new(TypeMap::new())),
+        event_handlers: vec![],
+        raw_event_handlers: vec![],
+        shard_index: 0u32,
+        shard_init: 0u32,
+        shard_total: 1u32,
+        ws_url: Default::default(),
+        cache: c.clone(),
+        http: http.clone(),
+        intents: GatewayIntents::default(),
+        presence: None,
+    };
+    let manager = ShardManager::new(manager_options);
+    let shard_id = *manager.0.runners.lock().await.keys().next().expect("");
+    let test_shard_info = TestShardInfo { id: shard_id, total: 1u32 };
+    let test_shard_info_string = serde_json::to_string(&test_shard_info).expect("");
+    let shard_info: ShardInfo = serde_json::from_str(&test_shard_info_string).expect("");
+    let shard = Shard::new(
+        Arc::new(Mutex::new(String::from(""))),
+        "",
+        shard_info,
+        GatewayIntents::default(),
+        None,
+    )
+    .await
+    .expect("");
+    let runner_options = ShardRunnerOptions {
+        data: Default::default(),
+        event_handlers: vec![],
+        raw_event_handlers: vec![],
+        manager: manager.0,
+        shard,
+        cache: c.clone(),
+        http: http.clone(),
+    };
+    let runner = ShardRunner::new(runner_options);
+    let context = Context {
+        data: Default::default(),
+        shard: ShardMessenger::new(&runner),
+        shard_id: ShardId(0_u32),
+        http,
+        cache: c,
+    };
+    let run = ping::run(&options, &context);
     //test embed
-    let mut embed = DiscordEmbed::new()
+    let embed = DiscordEmbed::new()
         .field("Greetings", "Program".to_string(), true)
         .color(Color::new(0x500060_u32))
         .thumbnail(
@@ -395,9 +606,14 @@ fn ping_comand() {
         )
         .title("Pong")
         .build();
-    embed.author(|a| a.name("".to_string()).url(cdn!("/embed/avatars/0.png").to_string()));
+    let author =
+        CreateEmbedAuthor::new("".to_string()).url(cdn!("/embed/avatars/0.png").to_string());
+    let embed = embed.clone().author(author);
     //result
-    assert_eq!(Value::from(hashmap_to_json_map(run.0)), Value::from(hashmap_to_json_map(embed.0)));
+    assert_eq!(
+        Value::from(createembed_to_json_map(run.await)),
+        Value::from(createembed_to_json_map(embed))
+    );
 }
 
 #[test]

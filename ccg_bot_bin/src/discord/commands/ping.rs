@@ -6,33 +6,26 @@ use crate::discord::builders::discordembed::*;
 use crate::utils::commandinteraction::CommandInteraction;
 
 //serenity
-use serenity::builder::{CreateApplicationCommand, CreateEmbed};
-use serenity::cache::Cache;
-use serenity::utils::Color;
-
-//std
-use std::sync::Arc;
+use serenity::all::{Color, Context};
+use serenity::builder::{CreateCommand, CreateEmbed, CreateEmbedAuthor};
 
 ///Called when the command is run in a guild.
-pub fn run(options: &CommandInteraction, cache: Arc<Cache>) -> CreateEmbed {
-    let c = &*Arc::try_unwrap(cache.clone()).unwrap_err();
-    trace!("{:?}", c);
-    let current_user = (*Arc::try_unwrap(cache).unwrap_err()).current_user();
-    debug!("{:?}", options);
-    let mut embed = DiscordEmbed::new()
+pub async fn run(_options: &CommandInteraction, context: &Context) -> CreateEmbed {
+    let current_user = context.cache.current_user().clone();
+    let embed = DiscordEmbed::new()
         .field("Greetings", "Program".to_string(), true)
         .color(Color::new(0x500060_u32))
         .thumbnail(
             "https://cdn.discordapp.com/emojis/938514423155400804.webp?size=48&quality=lossless",
         )
         .title("Pong")
+        .author(CreateEmbedAuthor::new(current_user.name.to_string()).url(current_user.face()))
         .build();
-    embed.author(|a| a.name(current_user.name.to_string()).url(current_user.face()));
     debug!("{:?}", &embed);
     embed
 }
 
 ///Register the command to be used in the guild.
-pub fn register(command: &mut CreateApplicationCommand) -> &mut CreateApplicationCommand {
-    command.name("ping").description("A ping command")
+pub fn register() -> CreateCommand {
+    CreateCommand::new("ping").description("A ping command")
 }
