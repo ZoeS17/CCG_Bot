@@ -1,6 +1,6 @@
-//!Reimplimentation of some Serenity's [application_command] structs and enums as they were non_exhaustive.
+//!Reimplimentation of some Serenity's [CommandInteraction] structs and enums as they were non_exhaustive.
 //!
-//! [application_command]: serenity::model::application::interaction::application_command
+//! [CommandInteraction]: serenity::model::application::CommandInteraction
 
 //crate
 use crate::StdResult;
@@ -660,9 +660,9 @@ mod tests {
             resolved: None,
             focused: false,
         };
+        let test_cdo_str = serde_json::to_string(&test_ci).unwrap();
         let test_cdo: CommandDataOption =
-            serde_json::from_str::<CommandDataOption>(&serde_json::to_string(&test_ci).unwrap())
-                .unwrap();
+            serde_json::from_str::<CommandDataOption>(&test_cdo_str).unwrap();
         let _: CommandInteraction = CommandInteraction::from(test_cdo);
     }
 
