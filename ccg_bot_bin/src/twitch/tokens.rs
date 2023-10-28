@@ -16,6 +16,9 @@ use twitch_oauth2::{ClientId, ClientSecret};
 
 // crate
 use crate::config::Config;
+//skip reordering to allow easy reference to verbosity(from least to most)
+#[rustfmt::skip]
+use crate::trace;
 #[cfg(not(test))]
 use crate::twitch::api;
 

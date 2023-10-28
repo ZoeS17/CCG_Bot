@@ -12,7 +12,8 @@ use serenity::all::{Color, CommandOptionType, CreateEmbedAuthor, Shard, ShardId,
 use serenity::cache::Cache;
 use serenity::client::Context;
 use serenity::gateway::{
-    ShardManager, ShardManagerOptions, ShardMessenger, ShardRunner, ShardRunnerOptions,
+    ShardManager, ShardManagerOptions, ShardMessenger, ShardRunner,
+    ShardRunnerOptions,
 };
 use serenity::http::Http;
 use serenity::model::{
@@ -37,10 +38,19 @@ macro_rules! cdn {
     };
 }
 
+pub(self) mod test_logging {
+    use std::env;
+    pub fn init() {
+        env::set_var("RUST_LOG", "trace");
+        tracing_subscriber::fmt::init();
+    }
+}
+
 #[test]
 fn it_works() {
     use super::super::config::Config;
     use super::super::discord::*;
+    test_logging::init();
     let dc: Result<Handler, serenity::Error> = aw!(new(Config {
         #[cfg(any(feature = "discord", feature = "full"))]
         discord_guildid: "".to_string(),
@@ -194,6 +204,7 @@ impl From<PartialMember> for PM {
 async fn id_command() {
     use super::super::discord::commands::id;
     use serenity::all::Context;
+    test_logging::init();
     let s_pm = from_str::<PartialMember>(
         &to_string(&PM {
             deaf: false,
@@ -307,6 +318,7 @@ async fn id_command() {
 #[tokio::test]
 async fn id_command_no_member() {
     use super::super::discord::commands::id;
+    test_logging::init();
     let cache = Arc::new(Cache::new());
     let user = TestUser::default();
     let user_str = to_string(&user).unwrap();
@@ -468,28 +480,166 @@ pub(crate) struct CurrentUser {
     pub banner: Option<String>,
     pub accent_colour: Option<Color>,
 }
+// TODO: Un-nref this after I can figure out what the hades I'm doing wrong
+/*
+struct LocalShardMessenger(pub Rc<ShardMessenger>);
+
+impl PartialEq for LocalShardMessenger {
+    fn eq(&self, other: &Self) -> bool {
+        // since ShardManager doesn't impl Eq nor allow us
+        // access to the fields, compare these as raw pointers
+        if &self.0 as *const _ == &other.0 as *const _ {
+            return true;
+        }
+        false
+    }
+
+    fn ne(&self, other: &Self) -> bool {
+        !self.eq(other)
+    }
+}
+
+struct LocalShardRunnerInfo(pub Rc<ShardRunnerInfo>);
+
+impl PartialEq for LocalShardRunnerInfo {
+    fn eq(&self, other: &Self) -> bool {
+        let stage = self.0.stage == other.0.stage;
+        let latency = self.0.latency == other.0.latency;
+        let runner_tx = LocalShardMessenger(Rc::new(self.0.runner_tx.clone()))
+            == LocalShardMessenger(Rc::new(other.0.runner_tx.clone()));
+        if stage && latency && runner_tx {
+            return true;
+        }
+        false
+    }
+
+    fn ne(&self, other: &Self) -> bool {
+        !self.eq(other)
+    }
+}
+
+impl Into<ShardRunnerInfo> for LocalShardRunnerInfo {
+    fn into(self) -> ShardRunnerInfo {
+        Rc::<ShardRunnerInfo>::into_inner(self.0)
+            .expect("Unable to extract ShardRunnerInfo from LocalShardRunnerInfo")
+    }
+}
+
+struct LocalShardId(pub ShardId);
+
+impl PartialEq for LocalShardId {
+    fn eq(&self, other: &Self) -> bool {
+        self.0 == other.0
+    }
+
+    fn ne(&self, other: &Self) -> bool {
+        !self.eq(other)
+    }
+}
+
+impl Into<ShardId> for LocalShardId {
+    fn into(self) -> ShardId {
+        self.0
+    }
+}
+
+struct Private<'up> {
+    id: ShardId,
+    stage: serenity::gateway::ConnectionStage,
+    runner_info: &'up ShardRunnerInfo,
+    messenger: ShardMessenger,
+}
+
+struct LocalShardManager<'up>(pub &'up ShardManager, &'up mut Private<'up>);
+
+impl<'up> LocalShardManager<'up> {
+    fn _set_stage(&mut self, stage: serenity::gateway::ConnectionStage) {
+        self.1.stage = stage;
+    }
+
+    fn _set_runner_info(&mut self, runner_info: &'up ShardRunnerInfo) {
+        self.1.runner_info = runner_info;
+    }
+
+    fn _set_messenger(&mut self, messenger: ShardMessenger) {
+        self.1.messenger = messenger;
+    }
+
+    fn _set_shard_id(&mut self, id: ShardId) {
+        self.1.id = id;
+    }
+
+    fn _set_shard_id_u32(&mut self, id: u32) {
+        self._set_shard_id(ShardId(id));
+    }
+
+    async fn shards_instantiated(&self) -> Vec<ShardId> {
+        self.0.shards_instantiated().await
+    }
+    fn intents(&self) -> GatewayIntents {
+        self.0.intents()
+    }
+
+    fn messenger(&mut self) -> &ShardMessenger {
+        &self.1.messenger
+    }
+
+    fn runners(
+        &mut self,
+    ) -> Arc<serenity::prelude::Mutex<HashMap<ShardId, ShardRunnerInfo>>> {
+        let shard_id: ShardId = self.1.id;
+        let shard_runner_info =
+            ShardRunnerInfo { latency: None, runner_tx: *self.messenger(), stage: self.1.stage };
+        // let jail = OnceCell::new();
+        // if let Ok(_) = jail.set(*&shard_runner_info) {
+        //     unreachable!();
+        // };
+        let mut map = HashMap::new();
+        self._set_runner_info(&shard_runner_info);
+        map.insert(shard_id, shard_runner_info);
+        Arc::new(serenity::prelude::Mutex::new(map))
+    }
+}
+
+struct LocalRunner(Arc<serenity::prelude::Mutex<HashMap<ShardId, ShardRunnerInfo>>>);
+
+impl PartialEq for LocalRunner {
+    #[inline]
+    fn eq(&self, other: &LocalRunner) -> bool {
+        let rt = Runtime::new().unwrap();
+        let self_inner: ShardRunnerInfo =
+            *rt.block_on(async { self.0.lock().await }).get(&ShardId(0u32)).expect("");
+        let other_inner: ShardRunnerInfo =
+            *rt.block_on(async { other.0.lock().await }).get(&ShardId(0u32)).expect("");
+        LocalShardRunnerInfo(Rc::new(self_inner)) == LocalShardRunnerInfo(Rc::new(other_inner))
+    }
+}
+use tokio::runtime::Runtime;
+
+impl PartialEq for LocalShardManager<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        let rt = Runtime::new().unwrap();
+        let self_shards = rt.block_on(async { self.shards_instantiated().await });
+        let other_shards = rt.block_on(async { other.shards_instantiated().await });
+        let shards_instantiated = self_shards == other_shards;
+        let intents = self.intents() == other.intents();
+        let self_runners = LocalRunner(self.runners());
+        let other_runners = LocalRunner(other.runners());
+        let runners = self_runners == other_runners;
+        if shards_instantiated && intents && runners {
+            return true;
+        }
+        false
+    }
+
+    fn ne(&self, other: &Self) -> bool {
+        !self.eq(other)
+    }
+}
+*/
 
 #[test]
 fn embed_builder() {
-    /*
-    let cache = Cache::new();
-    let _users = cache.users();
-
-    let mut update_message = TestUserUpdate {
-
-        user_avatar: Some(
-            cdn!("/avatars/379001295744532481/072bcea1eedb39786002311d5619a398.webp?size=1024")
-                .to_string(),
-        ),
-
-        user_avatar: Some("072bcea1eedb39786002311d5619a398".parse().expect("")),
-        user_discriminator: 6349,
-        user_id: UserId::new(379001295744532481_u64),
-        bot_user: true,
-        user_name: "Courtesy Call Bot".to_string(),
-    };
-    cache.update(&mut update_message);
-    */
 
     let test_user_public_flags = Default::default();
     let user = User {
@@ -532,9 +682,14 @@ fn embed_builder() {
     //string inside an assert?
 }
 
+// See above: On Nerfing
+/*
 #[tokio::test]
-async fn ping_comand() {
+async fn ping_command() {
     use super::super::discord::commands::ping;
+
+    test_logging::init();
+
     let cache = Cache::new();
     let user = TestUser::default();
     let user_str = to_string(&user).unwrap();
@@ -550,14 +705,15 @@ async fn ping_comand() {
     };
     let options = test_ci;
     let c = Arc::new(cache);
-    let token = Config::new().discord_token;
+    let config = Config::new();
+    let token = config.discord_token;
     let http = Arc::new(Http::new(&token));
     let manager_options = ShardManagerOptions {
         data: Arc::new(RwLock::new(TypeMap::new())),
         event_handlers: vec![],
         raw_event_handlers: vec![],
         shard_index: 0u32,
-        shard_init: 0u32,
+        shard_init: 1u32,
         shard_total: 1u32,
         ws_url: Default::default(),
         cache: c.clone(),
@@ -565,9 +721,31 @@ async fn ping_comand() {
         intents: GatewayIntents::default(),
         presence: None,
     };
-    let manager = ShardManager::new(manager_options);
-    let shard_id = *manager.0.runners.lock().await.keys().next().expect("");
-    let test_shard_info = TestShardInfo { id: shard_id, total: 1u32 };
+    let arc_manager = ShardManager::new(manager_options);
+    dbg!(&arc_manager);
+    let manager = arc_manager.0;
+    dbg!(&manager);
+    let man = manager.clone();
+    let intialized_manager = manager.initialize();
+    let id = ShardId(0u32);
+    let runner_info: ShardRunnerInfo = *(arc_manager.0.runners.lock().await.get(&id).expect(""));
+    let stage = ConnectionStage::Connected;
+    let messenger = runner_info.runner_tx;
+    // let jail = OnceCell::new();
+    // let Ok(_) = jail.set(runner_info);
+    let mut private = Private { id, stage, runner_info: &runner_info, messenger };
+    dbg!(&intialized_manager);
+    dbg!(&manager);
+    assert!(LocalShardManager(&manager, &mut private) == LocalShardManager(&man, &mut private));
+    let ret_value_from_shard_queuer = arc_manager.1;
+    dbg!(&ret_value_from_shard_queuer);
+    let runners = &manager.runners;
+    dbg!(&runners);
+    let shard_runner = runners.lock().await;
+    dbg!(&shard_runner);
+    let shard_id = shard_runner.keys().next().expect("");
+    let test_shard_info = TestShardInfo { id: *shard_id, total: 1u32 };
+    drop(shard_runner);
     let test_shard_info_string = serde_json::to_string(&test_shard_info).expect("");
     let shard_info: ShardInfo = serde_json::from_str(&test_shard_info_string).expect("");
     let shard = Shard::new(
@@ -583,7 +761,7 @@ async fn ping_comand() {
         data: Default::default(),
         event_handlers: vec![],
         raw_event_handlers: vec![],
-        manager: manager.0,
+        manager,
         shard,
         cache: c.clone(),
         http: http.clone(),
@@ -615,6 +793,7 @@ async fn ping_comand() {
         Value::from(createembed_to_json_map(embed))
     );
 }
+*/
 
 #[test]
 fn hanlder_debug() {

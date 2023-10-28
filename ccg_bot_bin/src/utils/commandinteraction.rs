@@ -661,6 +661,7 @@ mod tests {
             focused: false,
         };
         let test_cdo_str = serde_json::to_string(&test_ci).unwrap();
+        dbg!(&test_cdo_str);
         let test_cdo: CommandDataOption =
             serde_json::from_str::<CommandDataOption>(&test_cdo_str).unwrap();
         let _: CommandInteraction = CommandInteraction::from(test_cdo);

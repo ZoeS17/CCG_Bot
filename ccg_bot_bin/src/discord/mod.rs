@@ -2,6 +2,9 @@
 
 //crate
 use crate::config::Config;
+//skip reordering to allow easy reference to verbosity(from least to most)
+#[rustfmt::skip]
+use crate::{info, debug, trace};
 #[cfg(all(any(feature = "discord", feature = "full"), test))]
 use crate::tests::discord::test_shard_info_serde;
 use crate::utils::commandinteraction::CommandInteraction;

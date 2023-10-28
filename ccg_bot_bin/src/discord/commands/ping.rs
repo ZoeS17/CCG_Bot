@@ -2,6 +2,9 @@
 
 //crate
 use crate::discord::builders::discordembed::*;
+//skip reordering to allow easy reference to verbosity(from least to most)
+#[rustfmt::skip]
+use crate::debug;
 #[cfg(any(feature = "discord", feature = "full"))]
 use crate::utils::commandinteraction::CommandInteraction;
 
