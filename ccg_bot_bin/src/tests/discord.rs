@@ -12,8 +12,7 @@ use serenity::all::{Color, CommandOptionType, CreateEmbedAuthor, Shard, ShardId,
 use serenity::cache::Cache;
 use serenity::client::Context;
 use serenity::gateway::{
-    ShardManager, ShardManagerOptions, ShardMessenger, ShardRunner,
-    ShardRunnerOptions,
+    ShardManager, ShardManagerOptions, ShardMessenger, ShardRunner, ShardRunnerOptions,
 };
 use serenity::http::Http;
 use serenity::model::{
@@ -640,7 +639,6 @@ impl PartialEq for LocalShardManager<'_> {
 
 #[test]
 fn embed_builder() {
-
     let test_user_public_flags = Default::default();
     let user = User {
         id: 379001295744532481,
