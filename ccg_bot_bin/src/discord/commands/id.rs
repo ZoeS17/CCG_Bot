@@ -8,6 +8,8 @@ use crate::discord::builders::discordembed::*;
 use crate::debug;
 #[cfg(any(feature = "discord", feature = "full"))]
 use crate::utils::commandinteraction::{CommandInteraction, CommandInteractionResolved};
+// #[cfg(any(feature = "discord", feature = "full"))]
+// use crate::FixedArray;
 
 //serenity imports
 use serenity::all::CommandOptionType;
@@ -25,18 +27,28 @@ pub async fn run(options: &CommandInteraction, context: &Context) -> CreateEmbed
     let c = &*Arc::try_unwrap(context.cache.clone()).unwrap_err();
     let http_cache = context.http.clone();
     let current_user = context.cache.current_user().clone();
-    let option = options.resolved.as_ref().expect("Expected user object");
+    #[cfg(test)]
+    dbg!(&context.clone().http);
+    #[cfg(test)]
+    dbg!(&context.clone().cache);
+    let option: CommandInteractionResolved =
+        options.data.options.first().expect("").value.clone().into();
+    #[cfg(test)]
+    dbg!(&option);
 
     let res: CreateEmbed;
     let CommandInteractionResolved::User(uid) = option else {
-        panic!("unexpected type in resolved")
+        panic!("unexpected type in resolved: {option:?}")
     };
-    let user = uid.to_user(http_cache).await.expect("");
+    let user_result = uid.to_user(http_cache).await;
+    let user = user_result.expect("-_-;"); // uid.to_user(http_cache).await.expect("");
     let member = user.member.clone();
     let mut mem: PartialMember;
     if member.is_some() {
         mem = *member.clone().unwrap();
         //This is cursed. There has to be a better way.
+        #[cfg(test)]
+        dbg!(&mem);
         let mut roles = format!(
             "{:?}",
             mem.roles

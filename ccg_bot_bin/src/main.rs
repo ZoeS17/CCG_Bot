@@ -19,6 +19,10 @@ use config::Config;
 // serde
 use serde_json::Error as JsonError;
 
+// small-array
+// #[cfg(any(feature = "discord", feature = "full"))]
+// pub use small_fixed_array::{FixedArray, FixedString};
+
 //std
 use std::env;
 use std::error::Error as StdError;

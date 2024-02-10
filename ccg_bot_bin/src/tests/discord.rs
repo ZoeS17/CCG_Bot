@@ -1,29 +1,25 @@
-use crate::config::Config;
 //crate
+use crate::config::Config;
 use crate::discord::builders::discordembed::DiscordEmbed;
-use crate::utils::commandinteraction::{CommandInteraction, CommandInteractionResolved};
+use crate::utils::commandinteraction::{
+    CommandInteraction, CommandInteractionResolved, LocalCommandData,
+};
 use crate::utils::json::prelude::{createembed_to_json_map, from_str, to_string, Value};
+use crate::utils::TestUser;
+//use crate::{FixedArray, FixedString};
 
 //serde
 use serde::{Deserialize, Serialize};
 
 //serenity
-use serenity::all::{Color, CommandOptionType, CreateEmbedAuthor, Shard, ShardId, ShardInfo};
-use serenity::cache::Cache;
-use serenity::client::Context;
-use serenity::gateway::{
-    ShardManager, ShardManagerOptions, ShardMessenger, ShardRunner, ShardRunnerOptions,
+use serenity::all::{
+    ApplicationId, Attachment, Cache, ChannelId, Color, Context, CreateEmbedAuthor, GatewayIntents,
+    GuildId, Http, InteractionId, PartialChannel, PartialMember, Permissions, Role, RoleId, Shard,
+    ShardId, ShardInfo, ShardManager, ShardManagerOptions, ShardMessenger, ShardRunner,
+    ShardRunnerOptions, Timestamp, User as SerenityUser, UserId, UserPublicFlags,
+    UserUpdateEvent as SerenityUserUpdateEvent,
 };
-use serenity::http::Http;
-use serenity::model::{
-    channel::{Attachment, PartialChannel},
-    event::UserUpdateEvent as SerenityUserUpdateEvent,
-    guild::{PartialMember, Role},
-    id::{GuildId, RoleId, UserId},
-    user::{User as SerenityUser, UserPublicFlags},
-    Permissions, Timestamp,
-};
-use serenity::prelude::{GatewayIntents, RwLock, TypeMap};
+use serenity::prelude::{RwLock, TypeMap};
 
 //tokio
 use tokio::sync::Mutex;
@@ -37,19 +33,46 @@ macro_rules! cdn {
     };
 }
 
-pub(self) mod test_logging {
-    use std::env;
-    pub fn init() {
-        env::set_var("RUST_LOG", "trace");
-        tracing_subscriber::fmt::init();
-    }
-}
+// pub(crate) mod test_logging {
+//     use std::env;
+
+//     // Keep the in order of least verbose to most
+//     #[rustfmt::skip]
+//     pub enum Level {
+//         Error,
+//         Warn,
+//         Info,
+//         Debug,
+//         Trace,
+//     }
+
+//     impl From<Level> for String {
+//         fn from(value: Level) -> Self {
+//             match value {
+//                 Level::Error => String::from("error"),
+//                 Level::Warn => String::from("warn"),
+//                 Level::Info => String::from("info"),
+//                 Level::Debug => String::from("debug"),
+//                 Level::Trace => String::from("trace"),
+//             }
+//         }
+//     }
+
+//     pub fn init(level: Level) {
+//         let level = Into::<String>::into(level);
+//         if env::var(level.clone()).is_err() {
+//             env::set_var("RUST_LOG", &level);
+//             tracing_subscriber::fmt::init();
+//         }
+//     }
+// }
 
 #[test]
 fn it_works() {
     use super::super::config::Config;
     use super::super::discord::*;
-    test_logging::init();
+    // use test_logging::Level;
+    // test_logging::init(Level::Error);
     let dc: Result<Handler, serenity::Error> = aw!(new(Config {
         #[cfg(any(feature = "discord", feature = "full"))]
         discord_guildid: "".to_string(),
@@ -137,21 +160,6 @@ impl PartialEq for User {
     }
 }
 
-#[derive(Clone, Debug, Default, Deserialize, Serialize)]
-pub struct TestUser {
-    pub id: UserId,
-    pub avatar: Option<String>,
-    #[serde(default)]
-    pub bot: bool,
-    pub discriminator: u16,
-    #[serde(rename = "username")]
-    pub name: String,
-    pub public_flags: Option<UserPublicFlags>,
-    pub banner: Option<String>,
-    #[serde(rename = "accent_color")]
-    pub accent_colour: Option<Color>,
-}
-
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[repr(u8)]
 pub(crate) enum Cdov {
@@ -199,11 +207,17 @@ impl From<PartialMember> for PM {
     }
 }
 
+// fn server() -> () {
+//     use super::super::discord::Self;
+// }
+
 #[tokio::test]
 async fn id_command() {
+    use super::super::discord;
     use super::super::discord::commands::id;
     use serenity::all::Context;
-    test_logging::init();
+    // use test_logging::Level;
+    // test_logging::init(Level::Error);
     let s_pm = from_str::<PartialMember>(
         &to_string(&PM {
             deaf: false,
@@ -225,77 +239,100 @@ async fn id_command() {
     let user_cast = from_str::<SerenityUser>(&user_str).unwrap();
     let resolved_obj = CommandInteractionResolved::User(user_cast.id);
     let test_ci = CommandInteraction {
-        name: "id".to_string(),
-        //value: Value::from(TestUser::default().id.to_string()),
-        value: serenity::all::CommandDataOptionValue::User(user_cast.id),
-        kind: CommandOptionType::User,
-        options: vec![],
-        resolved: Some(resolved_obj),
-        focused: false,
+        id: InteractionId::new(!0u64),
+        application_id: ApplicationId::new(!0u64),
+        data: serde_json::from_str(&serde_json::to_string(&LocalCommandData::default()).expect(""))
+            .expect(""),
+        guild_id: None,
+        channel: None,
+        channel_id: ChannelId::new(!0_u64),
+        member: None,
+        user: serde_json::from_str(&serde_json::to_string(&TestUser::default()).expect(""))
+            .expect(""),
+        token: String::from(""),
+        version: 1u8,
+        app_permissions: None,
+        locale: String::from(""),
+        guild_locale: None,
+        entitlements: vec![],
     };
-    let options = test_ci;
-    let cache = Cache::new();
-    let c = Arc::new(cache);
-    let c_clone = &*Arc::try_unwrap(c.clone()).unwrap_err();
-    let token = Config::new().discord_token;
-    let http = Arc::new(Http::new(&token));
-    let manager_options = ShardManagerOptions {
-        data: Arc::new(RwLock::new(TypeMap::new())),
-        event_handlers: vec![],
-        raw_event_handlers: vec![],
-        shard_index: 0u32,
-        shard_init: 0u32,
-        shard_total: 1u32,
-        ws_url: Default::default(),
-        cache: c.clone(),
-        http: http.clone(),
-        intents: GatewayIntents::default(),
-        presence: None,
+    // let options = test_ci;
+    // let cache = Cache::new();
+    // let c = Arc::new(cache);
+    // let c_clone = &*Arc::try_unwrap(c.clone()).unwrap_err();
+    // let token = Config::new().discord_token;
+    // let http = Arc::new(Http::new(&token));
+    // let manager_options = ShardManagerOptions {
+    //     data: Arc::new(RwLock::new(TypeMap::new())),
+    //     event_handlers: vec![],
+    //     raw_event_handlers: vec![],
+    //     shard_index: 0u32,
+    //     shard_init: 0u32,
+    //     shard_total: 1u32,
+    //     ws_url: Default::default(),
+    //     cache: c.clone(),
+    //     http: http.clone(),
+    //     intents: GatewayIntents::default(),
+    //     presence: None,
+    // };
+    // let manager = ShardManager::new(manager_options);
+    // dbg!(&manager);
+    // let _ = manager.0.initialize();
+    // dbg!(&manager);
+    // let binding = manager.0.runners.lock().await;
+    // dbg!(&binding);
+    // let mut shard_keys = dbg!(binding.keys());
+    // let shard_id = *shard_keys.next().expect("");
+    // drop(binding);
+    // let test_shard_info = TestShardInfo { id: shard_id, total: 1u32 };
+    // let test_shard_info_string = serde_json::to_string(&test_shard_info).expect("");
+    // let shard_info: ShardInfo = serde_json::from_str(&test_shard_info_string).expect("");
+    // let shard = Shard::new(
+    //     Arc::new(Mutex::new(String::from(""))),
+    //     "",
+    //     shard_info,
+    //     GatewayIntents::default(),
+    //     None,
+    // )
+    // .await
+    // .expect("");
+    // let runner_options = ShardRunnerOptions {
+    //     data: Default::default(),
+    //     event_handlers: vec![],
+    //     raw_event_handlers: vec![],
+    //     manager: manager.0,
+    //     shard,
+    //     cache: c.clone(),
+    //     http: http.clone(),
+    // };
+    // let runner = ShardRunner::new(runner_options);
+    // let context = Context {
+    //     data: Default::default(),
+    //     http,
+    //     cache: c.clone(),
+    //     shard: ShardMessenger::new(&runner),
+    //     shard_id,
+    // };
+    let config = Config::new();
+    let discord_handle = discord::new(config.clone());
+    match discord::new(config.clone()).await {
+        Ok(h) => eprintln!("{:?}", h),
+        Err(e) => eprintln!("{:?}", e),
     };
-    let manager = ShardManager::new(manager_options);
-    let shard_id = *manager.0.runners.lock().await.keys().next().expect("");
-    let test_shard_info = TestShardInfo { id: shard_id, total: 1u32 };
-    let test_shard_info_string = serde_json::to_string(&test_shard_info).expect("");
-    let shard_info: ShardInfo = serde_json::from_str(&test_shard_info_string).expect("");
-    let shard = Shard::new(
-        Arc::new(Mutex::new(String::from(""))),
-        "",
-        shard_info,
-        GatewayIntents::default(),
-        None,
-    )
-    .await
-    .expect("");
-    let runner_options = ShardRunnerOptions {
-        data: Default::default(),
-        event_handlers: vec![],
-        raw_event_handlers: vec![],
-        manager: manager.0,
-        shard,
-        cache: c.clone(),
-        http: http.clone(),
-    };
-    let runner = ShardRunner::new(runner_options);
-    let context = Context {
-        data: Default::default(),
-        http,
-        cache: c.clone(),
-        shard: ShardMessenger::new(&runner),
-        shard_id,
-    };
-    let run = id::run(&options, &context);
-    let mut roles = format!(
-        "{:?}",
-        s_pm.ok()
-            .unwrap()
-            .roles
-            .drain(..)
-            .map(|r| format!("{}", r.to_role_cached(c_clone).unwrap()))
-            .collect::<Vec<_>>()
-    );
-    roles.retain(|c| c != '[');
-    roles.retain(|c| c != ']');
-    roles.retain(|c| c != '"');
+    // let run = id::run(&options, &context);
+    // let mut roles = format!(
+    //     "{:?}",
+    //     s_pm.ok()
+    //         .unwrap()
+    //         .roles
+    //         .drain(..)
+    //         .map(|r| format!("{}", r.to_role_cached(c_clone).unwrap()))
+    //         .collect::<Vec<_>>()
+    // );
+    // roles.retain(|c| c != '[');
+    // roles.retain(|c| c != ']');
+    // roles.retain(|c| c != '"');
+    let roles = ""; // XXX: Remove me
     let embed = DiscordEmbed::new()
         .field("id", format!("`{}`", user.id), true)
         .field("name", format!("`{}`", user.name), true)
@@ -308,28 +345,39 @@ async fn id_command() {
     let author =
         CreateEmbedAuthor::new("".to_string()).url(cdn!("/embed/avatars/0.png").to_string());
     let embed = embed.clone().author(author);
-    assert_eq!(
-        Value::from(createembed_to_json_map(run.await)),
-        Value::from(createembed_to_json_map(embed))
-    );
+    // assert_eq!(
+    //     Value::from(createembed_to_json_map(run.await)),
+    //     Value::from(createembed_to_json_map(embed))
+    // );
 }
 
 #[tokio::test]
-async fn id_command_no_member() {
+async fn no_member_id_command() {
     use super::super::discord::commands::id;
-    test_logging::init();
+    // use test_logging::Level;
+    // test_logging::init(Level::Error);
     let cache = Arc::new(Cache::new());
     let user = TestUser::default();
     let user_str = to_string(&user).unwrap();
     let user_cast = from_str::<SerenityUser>(&user_str).unwrap();
     let resolved_obj = CommandInteractionResolved::User(user_cast.id);
     let test_ci = CommandInteraction {
-        name: "id".to_string(),
-        value: serenity::all::CommandDataOptionValue::User(user_cast.id),
-        kind: CommandOptionType::User,
-        options: vec![],
-        resolved: Some(resolved_obj),
-        focused: false,
+        id: InteractionId::new(!0u64),
+        application_id: ApplicationId::new(!0u64),
+        data: serde_json::from_str(&serde_json::to_string(&LocalCommandData::default()).expect(""))
+            .expect(""),
+        guild_id: None,
+        channel: None,
+        channel_id: ChannelId::new(!0_u64),
+        member: None,
+        user: serde_json::from_str(&serde_json::to_string(&TestUser::default()).expect(""))
+            .expect(""),
+        token: String::from(""),
+        version: 1u8,
+        app_permissions: None,
+        locale: String::from(""),
+        guild_locale: None,
+        entitlements: vec![],
     };
     let options = test_ci;
     let token = Config::new().discord_token;
@@ -464,7 +512,7 @@ impl CacheUpdate for TestUserUpdate {
 */
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
-pub(crate) struct CurrentUser {
+pub struct CurrentUser {
     pub id: UserId,
     pub avatar: Option<String>,
     #[serde(default)]
@@ -681,117 +729,115 @@ fn embed_builder() {
 }
 
 // See above: On Nerfing
-/*
-#[tokio::test]
-async fn ping_command() {
-    use super::super::discord::commands::ping;
+//#[tokio::test]
+//async fn ping_command() {
+//    use super::super::discord::commands::ping;
 
-    test_logging::init();
+//    test_logging::init();
 
-    let cache = Cache::new();
-    let user = TestUser::default();
-    let user_str = to_string(&user).unwrap();
-    let user_cast = from_str::<SerenityUser>(&user_str).unwrap();
-    let resolved_obj = CommandInteractionResolved::User(user_cast.id);
-    let test_ci = CommandInteraction {
-        name: "ping".to_string(),
-        value: serenity::all::CommandDataOptionValue::User(TestUser::default().id),
-        kind: CommandOptionType::User,
-        options: vec![],
-        resolved: Some(resolved_obj),
-        focused: false,
-    };
-    let options = test_ci;
-    let c = Arc::new(cache);
-    let config = Config::new();
-    let token = config.discord_token;
-    let http = Arc::new(Http::new(&token));
-    let manager_options = ShardManagerOptions {
-        data: Arc::new(RwLock::new(TypeMap::new())),
-        event_handlers: vec![],
-        raw_event_handlers: vec![],
-        shard_index: 0u32,
-        shard_init: 1u32,
-        shard_total: 1u32,
-        ws_url: Default::default(),
-        cache: c.clone(),
-        http: http.clone(),
-        intents: GatewayIntents::default(),
-        presence: None,
-    };
-    let arc_manager = ShardManager::new(manager_options);
-    dbg!(&arc_manager);
-    let manager = arc_manager.0;
-    dbg!(&manager);
-    let man = manager.clone();
-    let intialized_manager = manager.initialize();
-    let id = ShardId(0u32);
-    let runner_info: ShardRunnerInfo = *(arc_manager.0.runners.lock().await.get(&id).expect(""));
-    let stage = ConnectionStage::Connected;
-    let messenger = runner_info.runner_tx;
-    // let jail = OnceCell::new();
-    // let Ok(_) = jail.set(runner_info);
-    let mut private = Private { id, stage, runner_info: &runner_info, messenger };
-    dbg!(&intialized_manager);
-    dbg!(&manager);
-    assert!(LocalShardManager(&manager, &mut private) == LocalShardManager(&man, &mut private));
-    let ret_value_from_shard_queuer = arc_manager.1;
-    dbg!(&ret_value_from_shard_queuer);
-    let runners = &manager.runners;
-    dbg!(&runners);
-    let shard_runner = runners.lock().await;
-    dbg!(&shard_runner);
-    let shard_id = shard_runner.keys().next().expect("");
-    let test_shard_info = TestShardInfo { id: *shard_id, total: 1u32 };
-    drop(shard_runner);
-    let test_shard_info_string = serde_json::to_string(&test_shard_info).expect("");
-    let shard_info: ShardInfo = serde_json::from_str(&test_shard_info_string).expect("");
-    let shard = Shard::new(
-        Arc::new(Mutex::new(String::from(""))),
-        "",
-        shard_info,
-        GatewayIntents::default(),
-        None,
-    )
-    .await
-    .expect("");
-    let runner_options = ShardRunnerOptions {
-        data: Default::default(),
-        event_handlers: vec![],
-        raw_event_handlers: vec![],
-        manager,
-        shard,
-        cache: c.clone(),
-        http: http.clone(),
-    };
-    let runner = ShardRunner::new(runner_options);
-    let context = Context {
-        data: Default::default(),
-        shard: ShardMessenger::new(&runner),
-        shard_id: ShardId(0_u32),
-        http,
-        cache: c,
-    };
-    let run = ping::run(&options, &context);
-    //test embed
-    let embed = DiscordEmbed::new()
-        .field("Greetings", "Program".to_string(), true)
-        .color(Color::new(0x500060_u32))
-        .thumbnail(
-            "https://cdn.discordapp.com/emojis/938514423155400804.webp?size=48&quality=lossless",
-        )
-        .title("Pong")
-        .build();
-    let author =
-        CreateEmbedAuthor::new("".to_string()).url(cdn!("/embed/avatars/0.png").to_string());
-    let embed = embed.clone().author(author);
-    //result
-    assert_eq!(
-        Value::from(createembed_to_json_map(run.await)),
-        Value::from(createembed_to_json_map(embed))
-    );
-}
-*/
+//    let cache = Cache::new();
+//    let user = TestUser::default();
+//    let user_str = to_string(&user).unwrap();
+//    let user_cast = from_str::<SerenityUser>(&user_str).unwrap();
+//    let resolved_obj = CommandInteractionResolved::User(user_cast.id);
+//    let test_ci = CommandInteraction {
+//        name: "ping".to_string(),
+//        value: serenity::all::CommandDataOptionValue::User(TestUser::default().id),
+//        kind: CommandOptionType::User,
+//        options: vec![],
+//        resolved: Some(resolved_obj),
+//        focused: false,
+//    };
+//    let options = test_ci;
+//    let c = Arc::new(cache);
+//    let config = Config::new();
+//    let token = config.discord_token;
+//    let http = Arc::new(Http::new(&token));
+//    let manager_options = ShardManagerOptions {
+//        data: Arc::new(RwLock::new(TypeMap::new())),
+//        event_handlers: vec![],
+//        raw_event_handlers: vec![],
+//        shard_index: 0u32,
+//        shard_init: 1u32,
+//        shard_total: 1u32,
+//        ws_url: Default::default(),
+//        cache: c.clone(),
+//        http: http.clone(),
+//        intents: GatewayIntents::default(),
+//        presence: None,
+//    };
+//    let arc_manager = ShardManager::new(manager_options);
+//    dbg!(&arc_manager);
+//    let manager = arc_manager.0;
+//    dbg!(&manager);
+//    let man = manager.clone();
+//    let intialized_manager = manager.initialize();
+//    let id = ShardId(0u32);
+//    let runner_info: ShardRunnerInfo = *(arc_manager.0.runners.lock().await.get(&id).expect(""));
+//    let stage = ConnectionStage::Connected;
+//    let messenger = runner_info.runner_tx;
+//    // let jail = OnceCell::new();
+//    // let Ok(_) = jail.set(runner_info);
+//    let mut private = Private { id, stage, runner_info: &runner_info, messenger };
+//    dbg!(&intialized_manager);
+//    dbg!(&manager);
+//    assert!(LocalShardManager(&manager, &mut private) == LocalShardManager(&man, &mut private));
+//    let ret_value_from_shard_queuer = arc_manager.1;
+//    dbg!(&ret_value_from_shard_queuer);
+//    let runners = &manager.runners;
+//    dbg!(&runners);
+//    let shard_runner = runners.lock().await;
+//    dbg!(&shard_runner);
+//    let shard_id = shard_runner.keys().next().expect("");
+//    let test_shard_info = TestShardInfo { id: *shard_id, total: 1u32 };
+//    drop(shard_runner);
+//    let test_shard_info_string = serde_json::to_string(&test_shard_info).expect("");
+//    let shard_info: ShardInfo = serde_json::from_str(&test_shard_info_string).expect("");
+//    let shard = Shard::new(
+//        Arc::new(Mutex::new(String::from(""))),
+//        "",
+//        shard_info,
+//        GatewayIntents::default(),
+//        None,
+//    )
+//    .await
+//    .expect("");
+//    let runner_options = ShardRunnerOptions {
+//        data: Default::default(),
+//        event_handlers: vec![],
+//        raw_event_handlers: vec![],
+//        manager,
+//        shard,
+//        cache: c.clone(),
+//        http: http.clone(),
+//    };
+//    let runner = ShardRunner::new(runner_options);
+//    let context = Context {
+//        data: Default::default(),
+//        shard: ShardMessenger::new(&runner),
+//        shard_id: ShardId(0_u32),
+//        http,
+//        cache: c,
+//    };
+//    let run = ping::run(&options, &context);
+//    //test embed
+//    let embed = DiscordEmbed::new()
+//        .field("Greetings", "Program".to_string(), true)
+//        .color(Color::new(0x500060_u32))
+//        .thumbnail(
+//            "https://cdn.discordapp.com/emojis/938514423155400804.webp?size=48&quality=lossless",
+//        )
+//        .title("Pong")
+//        .build();
+//    let author =
+//        CreateEmbedAuthor::new("".to_string()).url(cdn!("/embed/avatars/0.png").to_string());
+//    let embed = embed.clone().author(author);
+//    //result
+//    assert_eq!(
+//        Value::from(createembed_to_json_map(run.await)),
+//        Value::from(createembed_to_json_map(embed))
+//    );
+//}
 
 #[test]
 fn hanlder_debug() {

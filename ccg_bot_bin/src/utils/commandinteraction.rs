@@ -3,6 +3,7 @@
 //! [CommandInteraction]: serenity::model::application::CommandInteraction
 
 //crate
+//use crate::{FixedArray, FixedString, StdResult};
 use crate::StdResult;
 //serde
 use serde::ser::{Error as SerError, SerializeStructVariant};
@@ -10,15 +11,13 @@ use serde::{Deserialize, Serialize};
 
 //serenity
 use serenity::all::{
-    AttachmentId, ChannelId, Color, CommandOptionType, CommandType, RoleId, UserId,
+    ApplicationId, Attachment as SerenityAttachment, AttachmentId, AutoArchiveDuration, ChannelId,
+    ChannelType, Color, CommandData, CommandDataOption, CommandDataOptionValue,
+    CommandDataResolved, CommandId, CommandType, Entitlement, GuildId, Interaction, InteractionId,
+    Member, PartialChannel as SerenityPartialChannel, Permissions, Role as SerenityRole, RoleId,
+    RoleTags as SerenityRoleTags, TargetId, ThreadMetadata as SerenityThreadMetadata, User, UserId,
 };
-use serenity::model::{
-    application::{CommandDataOption, CommandDataOptionValue},
-    channel::ChannelType,
-    channel::{Attachment as SerenityAttachment, PartialChannel as SerenityPartialChannel},
-    guild::{Role as SerenityRole, RoleTags as SerenityRoleTags},
-    Permissions,
-};
+use serenity::model::Timestamp;
 
 ///Reimplimentation of Serenity's [CommandType] as it was non_exhaustive
 #[derive(Copy, Clone, Debug, Hash, Eq, PartialEq, PartialOrd, Ord)]
@@ -59,6 +58,7 @@ pub enum CommandInteractionResolved {
 
 impl From<CommandDataOptionValue> for CommandInteractionResolved {
     fn from(cdov: CommandDataOptionValue) -> CommandInteractionResolved {
+        dbg!(&cdov);
         match cdov {
             CommandDataOptionValue::String(s) => CommandInteractionResolved::String(s),
             CommandDataOptionValue::Integer(i) => CommandInteractionResolved::Integer(i),
@@ -73,44 +73,162 @@ impl From<CommandDataOptionValue> for CommandInteractionResolved {
     }
 }
 
+// XXX: Used at discord::commands::id#L31
+impl From<CommandDataResolved> for CommandInteractionResolved {
+    fn from(value: CommandDataResolved) -> Self {
+        match value {
+            _ => {
+                dbg!(&value);
+                todo!();
+            },
+        }
+    }
+}
+
 ///Reimplimentation of Serenity's [CommandDataOption] as it was non_exhaustive
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct CommandInteraction {
-    /// The name of the parameter.
-    pub name: String,
-    /// The given value.
-    #[serde(serialize_with = "serialize_cdov", skip_deserializing, default = "default_cdov")]
-    pub value: CommandDataOptionValue,
-    /// The value type.
-    #[serde(rename = "type")]
-    pub kind: CommandOptionType,
-    /// The nested options.
+    /// Id of the interaction.
+    pub id: InteractionId,
+    /// Id of the application this interaction is for.
+    pub application_id: ApplicationId,
+    /// The data of the interaction which was triggered.
+    pub data: CommandData,
+    /// The guild Id this interaction was sent from, if there is one.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub guild_id: Option<GuildId>,
+    /// Channel that the interaction was sent from.
+    pub channel: Option<PartialChannel>,
+    /// The channel Id this interaction was sent from.
+    pub channel_id: ChannelId,
+    /// The `member` data for the invoking user.
     ///
-    /// **Note**: It is only present if the option is
-    /// a group or a subcommand.
+    /// **Note**: It is only present if the interaction is triggered in a guild.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub member: Option<Box<Member>>,
+    /// The `user` object for the invoking user.
     #[serde(default)]
-    pub options: Vec<CommandInteraction>,
-    /// The resolved object of the given `value`, if there is one.
-    #[serde(default)]
-    pub resolved: Option<CommandInteractionResolved>,
-    /// For `Autocomplete` Interactions this will be `true` if
-    /// this option is currently focused by the user.
-    #[serde(default)]
-    pub focused: bool,
+    pub user: User,
+    /// A continuation token for responding to the interaction.
+    pub token: String,
+    /// Always `1`.
+    pub version: u8,
+    /// Permissions the app or bot has within the channel the interaction was sent from.
+    pub app_permissions: Option<Permissions>,
+    /// The selected language of the invoking user.
+    pub locale: String,
+    /// The guild's preferred locale.
+    pub guild_locale: Option<String>,
+    /// Entitlements for app sku(if any)
+    pub entitlements: Vec<Entitlement>,
 }
 
 impl std::fmt::Display for CommandInteraction {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "{}, {:?}, {:?}, {:?}, {:?}, {}",
-            self.name, self.value, self.kind, self.options, self.resolved, self.focused
+            "{}, {:?}, {:?}, {:?}, {:?}, {}, {:?}, {}, {}, {}, {:?}, {}, {:?}, {:?}",
+            self.id,
+            self.application_id,
+            self.data,
+            self.guild_id,
+            self.channel,
+            self.channel_id,
+            self.member,
+            self.user,
+            "[REDACTED TOKEN]",
+            self.version,
+            self.app_permissions,
+            self.locale,
+            self.guild_locale,
+            self.entitlements
         )
     }
 }
 
 pub(crate) fn default_cdov() -> CommandDataOptionValue {
     CommandDataOptionValue::Unknown(!0u8)
+}
+
+// XXX: Used at crate::discord#L62
+impl From<Interaction> for CommandInteraction {
+    fn from(value: Interaction) -> Self {
+        let ci = value.command().expect("Unable to get CommandInteraction from Interaction");
+        dbg!(&ci);
+        Self {
+            id: ci.id,
+            application_id: ci.application_id,
+            data: ci.data,
+            guild_id: ci.guild_id,
+            channel: Some(PartialChannel::from(ci.channel.expect(""))),
+            channel_id: ci.channel_id,
+            member: ci.member,
+            user: ci.user,
+            token: ci.token,
+            version: ci.version,
+            app_permissions: ci.app_permissions,
+            locale: ci.locale,
+            guild_locale: ci.guild_locale,
+            entitlements: ci.entitlements,
+        }
+    }
+}
+
+///Reimplimentation of Serenity's [CommandData] as it was non_exhaustive
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub(crate) struct LocalCommandData {
+    /// The Id of the invoked command.
+    pub id: CommandId,
+    /// The name of the invoked command.
+    pub name: String,
+    /// The application command type of the triggered application command.
+    #[serde(rename = "type")]
+    pub kind: CommandType,
+    /// The parameters and the given values. The converted objects from the given options.
+    #[serde(default)]
+    pub resolved: CommandDataResolved,
+    #[serde(default)]
+    pub options: Vec<CommandDataOption>,
+    /// The Id of the guild the command is registered to.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub guild_id: Option<GuildId>,
+    /// The targeted user or message, if the triggered application command type is [`User`] or
+    /// [`Message`].
+    ///
+    /// Its object data can be found in the [`resolved`] field.
+    ///
+    /// [`resolved`]: Self::resolved
+    /// [`User`]: CommandType::User
+    /// [`Message`]: CommandType::Message
+    pub target_id: Option<TargetId>,
+}
+
+impl From<CommandData> for LocalCommandData {
+    fn from(value: CommandData) -> Self {
+        Self {
+            id: value.id,
+            name: value.name,
+            kind: value.kind,
+            resolved: value.resolved,
+            options: value.options,
+            guild_id: value.guild_id,
+            target_id: value.target_id,
+        }
+    }
+}
+
+impl Default for LocalCommandData {
+    fn default() -> Self {
+        Self {
+            id: Default::default(),
+            name: Default::default(),
+            kind: CommandType::Unknown(!0u8),
+            resolved: Default::default(),
+            options: Default::default(),
+            guild_id: Default::default(),
+            target_id: Default::default(),
+        }
+    }
 }
 
 /*
@@ -170,7 +288,7 @@ impl Serialize for CommandInteractionResolved {
         S: serde::Serializer,
     {
         match self {
-            CommandInteractionResolved::String(s) => serializer.serialize_str(s.as_str()),
+            CommandInteractionResolved::String(s) => serializer.serialize_str(&s),
             CommandInteractionResolved::Integer(i) => serializer.serialize_i64(*i),
             CommandInteractionResolved::Boolean(b) => serializer.serialize_bool(*b),
             // Since serenity uses a NonZeroU64 instead of a standard u64
@@ -215,6 +333,7 @@ where
             serializer.serialize_newtype_variant("CommandDataOptionValue", 3u32, "Number", n)
         },
         CommandDataOptionValue::String(ref s) => {
+            dbg!(&s);
             serializer.serialize_newtype_variant("CommandDataOptionValue", 4u32, "String", s)
         },
         CommandDataOptionValue::SubCommand(ref sc) => {
@@ -279,22 +398,20 @@ pub(crate) mod snowflake {
     }
 }
 
-impl From<CommandDataOption> for CommandInteraction {
-    fn from(cdo: CommandDataOption) -> CommandInteraction {
-        Self {
-            name: cdo.name.clone(),
-            value: cdo.value.clone(),
-            kind: cdo.kind(),
-            options: vec![],
-            resolved: None,
-            focused: false,
-        }
-    }
-}
-
 #[allow(clippy::trivially_copy_pass_by_ref)]
 pub fn is_false(v: &bool) -> bool {
     !v
+}
+//For the next update to Attachment
+use std::any::Any;
+use std::time::Duration;
+use tokio::time::Instant;
+
+pub fn is_none<T: Any>(v: &Option<T>) -> bool {
+    match v {
+        Some(t) => true,
+        None => false,
+    }
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
@@ -310,10 +427,24 @@ pub struct Attachment {
     pub content_type: Option<String>,
     #[serde(default, skip_serializing_if = "is_false")]
     pub ephemeral: bool,
+    // Added to allow for authentication params in new update
+    /// Timestamp indicating when the attachment URL will expire
+    #[serde(default, skip_serializing_if = "is_none", with = "approx_instant")]
+    pub ex: Option<Instant>,
+    /// Timestamp indicating when the URL was issued
+    #[serde(default, skip_serializing_if = "is_none", with = "approx_instant")]
+    pub is: Option<Instant>,
+    /// Unique sinature that remains valid until [`ex`]
+    #[serde(default, skip_serializing_if = "is_none")]
+    pub hm: Option<String>,
 }
 
 impl From<SerenityAttachment> for Attachment {
     fn from(value: SerenityAttachment) -> Self {
+        let bogus_is = Instant::now();
+        // 86400 seconds is a day, so a fair guess for now
+        // Might be supported too by observed links
+        let bogus_ex = Instant::now() - std::time::Duration::new(86400_64, 0_32);
         Self {
             id: value.id,
             filename: value.filename,
@@ -324,7 +455,43 @@ impl From<SerenityAttachment> for Attachment {
             width: value.width,
             content_type: value.content_type,
             ephemeral: value.ephemeral,
+            //Until this exists hard-code these
+            // is: value.is,
+            // ex: value.ex,
+            // hm: value.hm,
+            is: Some(bogus_is),
+            ex: Some(bogus_ex),
+            hm: Some(String::from("bogus")),
         }
+    }
+}
+
+mod approx_instant {
+    use serde::{de::Error, Deserialize, Deserializer, Serialize, Serializer};
+    use std::time::SystemTime;
+    use tokio::time::Instant;
+
+    pub fn serialize<S>(instant: &Option<Instant>, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let system_now = SystemTime::now();
+        let instant_now = Instant::now();
+        //N.B. This is only called if `instant` has some value
+        let approx = system_now - (instant_now - instant.unwrap());
+        approx.serialize(serializer)
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<Option<Instant>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let de = SystemTime::deserialize(deserializer)?;
+        let system_now = SystemTime::now();
+        let instant_now = Instant::now();
+        let duration = system_now.duration_since(de).map_err(Error::custom)?;
+        let approx = instant_now - duration;
+        Ok(Some(approx))
     }
 }
 
@@ -423,14 +590,71 @@ impl From<SerenityRole> for Role {
     }
 }
 
+#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
+#[cfg_attr(test, derive(PartialEq, Eq))]
+pub struct ThreadMetadata {
+    pub archived: bool,
+    pub auto_archive_duration: AutoArchiveDuration,
+    pub archive_timestamp: Option<Timestamp>,
+    #[serde(default)]
+    pub locked: bool,
+    pub create_timestamp: Option<Timestamp>,
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub invitable: bool,
+}
+
+impl From<Option<SerenityThreadMetadata>> for ThreadMetadata {
+    fn from(upstream: Option<SerenityThreadMetadata>) -> Self {
+        match upstream {
+            Some(value) => Self {
+                archived: value.archived,
+                auto_archive_duration: value.auto_archive_duration,
+                archive_timestamp: value.archive_timestamp,
+                locked: value.locked,
+                create_timestamp: value.create_timestamp,
+                invitable: value.invitable,
+            },
+            None => Self::default(),
+        }
+    }
+}
+
+impl Default for ThreadMetadata {
+    fn default() -> Self {
+        Self {
+            archived: false,
+            auto_archive_duration: AutoArchiveDuration::None,
+            archive_timestamp: None,
+            locked: false,
+            create_timestamp: None,
+            invitable: true,
+        }
+    }
+}
+
+impl From<SerenityThreadMetadata> for ThreadMetadata {
+    fn from(value: SerenityThreadMetadata) -> Self {
+        Self {
+            archived: value.archived,
+            auto_archive_duration: value.auto_archive_duration,
+            archive_timestamp: value.archive_timestamp,
+            locked: value.locked,
+            create_timestamp: value.create_timestamp,
+            invitable: value.invitable,
+        }
+    }
+}
+
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[cfg_attr(test, derive(PartialEq, Eq))]
 pub struct PartialChannel {
-    pub id: serenity::model::id::ChannelId,
+    pub id: ChannelId,
     pub name: Option<String>,
     #[serde(rename = "type")]
     pub kind: ChannelType,
     pub permissions: Option<Permissions>,
+    pub thread_metadata: Option<ThreadMetadata>,
+    pub parent_id: Option<ChannelId>,
 }
 
 impl Default for PartialChannel {
@@ -440,22 +664,43 @@ impl Default for PartialChannel {
             name: Some(String::default()),
             kind: ChannelType::Unknown(!0u8),
             permissions: Some(Permissions::default()),
+            thread_metadata: serde_json::from_str(
+                &serde_json::to_string(&ThreadMetadata::default()).expect(""),
+            )
+            .expect(""),
+            parent_id: None,
         }
     }
 }
 
 impl From<SerenityPartialChannel> for PartialChannel {
     fn from(value: SerenityPartialChannel) -> Self {
-        Self { id: value.id, name: value.name, kind: value.kind, permissions: value.permissions }
+        let thread_metadata = match value.thread_metadata {
+            Some(tmd) => tmd,
+            None => {
+                serde_json::from_str(&serde_json::to_string(&ThreadMetadata::default()).expect(""))
+                    .expect("")
+            },
+        };
+        Self {
+            id: value.id,
+            name: value.name,
+            kind: value.kind,
+            permissions: value.permissions,
+            thread_metadata: ThreadMetadata::from(thread_metadata).into(),
+            parent_id: value.parent_id,
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::tests::discord::TestUser;
-    use crate::utils::prelude::prelude::{from_str, to_string};
-    use serenity::all::{CommandOptionType, User};
+    use crate::utils::{
+        prelude::prelude::{from_str, to_string},
+        TestUser,
+    };
+    use serenity::all::User;
     use serenity::model::{
         channel::{Attachment as SerenityAttachment, PartialChannel as SerenityPartialChannel},
         guild::Role as SerenityRole,
@@ -528,10 +773,12 @@ mod tests {
     #[test]
     fn impl_from_serenitypartialchannel_for_partial_channel() {
         let test_partial_channel = PartialChannel::default();
+        dbg!(&test_partial_channel);
         let test_partial_channel_str = to_string(&test_partial_channel).unwrap();
         let upstream_partial_channel =
             from_str::<SerenityPartialChannel>(&test_partial_channel_str).unwrap();
         let roundtrip = PartialChannel::from(upstream_partial_channel);
+        dbg!(&roundtrip);
         assert_eq!(test_partial_channel, roundtrip);
     }
 
@@ -634,37 +881,30 @@ mod tests {
 
     #[test]
     fn derives_on_commandinteraction() {
-        let test_resolved =
-            CommandInteractionResolved::from(CommandDataOptionValue::String("Test".to_string()));
         let test_interaction: CommandInteraction = CommandInteraction {
-            name: "".to_string(),
-            value: CommandDataOptionValue::String(Default::default()),
-            kind: CommandOptionType::String,
-            options: vec![],
-            resolved: Some(test_resolved),
-            focused: false,
+            id: InteractionId::new(!0u64),
+            application_id: ApplicationId::new(!0u64),
+            data: serde_json::from_str(
+                &serde_json::to_string(&LocalCommandData::default()).expect(""),
+            )
+            .expect(""),
+            guild_id: None,
+            channel: None,
+            channel_id: ChannelId::new(!0_u64),
+            member: None,
+            user: serde_json::from_str(&serde_json::to_string(&TestUser::default()).expect(""))
+                .expect(""),
+            token: String::from(""),
+            version: 1u8,
+            app_permissions: None,
+            locale: String::from(""),
+            guild_locale: None,
+            entitlements: vec![],
         };
         let _ = test_interaction.clone(); //derive(Clone)
         let ti_string = serde_json::to_string(&test_interaction); //derive(Serialize)
         let _ = serde_json::from_str::<CommandInteraction>(&ti_string.unwrap()); //impl Deserialize
         let _ = format!("{:?}", test_interaction); //derive(Debug)
-    }
-
-    #[test]
-    fn impl_from_commanddataoption_for_commandinteraction() {
-        let test_ci = CommandInteraction {
-            name: "".to_string(),
-            value: CommandDataOptionValue::String(Default::default()),
-            kind: CommandOptionType::String,
-            options: vec![],
-            resolved: None,
-            focused: false,
-        };
-        let test_cdo_str = serde_json::to_string(&test_ci).unwrap();
-        dbg!(&test_cdo_str);
-        let test_cdo: CommandDataOption =
-            serde_json::from_str::<CommandDataOption>(&test_cdo_str).unwrap();
-        let _: CommandInteraction = CommandInteraction::from(test_cdo);
     }
 
     #[test]

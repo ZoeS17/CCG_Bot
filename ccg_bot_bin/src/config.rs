@@ -1,3 +1,4 @@
+use crate::env;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::io::Error as IoError;
@@ -99,10 +100,16 @@ impl Config {
         });
         #[cfg(any(feature = "discord", feature = "full"))]
         let discord_guildid: String = match config_toml.discord.clone() {
-            Some(dgid) => dgid.guildid.unwrap_or_else(|| {
-                eprintln!("Missing field `guildid` in table [discord]");
-                "0".to_string()
-            }),
+            Some(dgid) => {
+                #[cfg(test)]
+                let di = env::var("DISCORD_GUILD_ID").unwrap_or_else(|_| "0".to_string());
+                #[cfg(not(test))]
+                let di = dgid.guildid.unwrap_or_else(|| {
+                    eprintln!("Missing field `guildid` in table [discord]");
+                    env::var("DISCORD_GUILD_ID").unwrap_or_else(|_| "0".to_string())
+                });
+                di
+            },
             None => {
                 eprintln!("Missing table `[discord]`.");
                 "0".to_string()
@@ -110,10 +117,16 @@ impl Config {
         };
         #[cfg(any(feature = "discord", feature = "full"))]
         let discord_token: String = match config_toml.discord {
-            Some(dt) => dt.token.unwrap_or_else(|| {
-                eprintln!("Missing field `token` in table [discord]");
-                "discord".to_string()
-            }),
+            Some(dt) => {
+                #[cfg(test)]
+                let token = env::var("DISCORD_TOKEN").unwrap_or_else(|_| "discord".to_string());
+                #[cfg(not(test))]
+                let token = dt.token.unwrap_or_else(|| {
+                    eprintln!("Missing field `token` in table [discord]");
+                    env::var("DISCORD_TOKEN").unwrap_or_else(|_| "discord".to_string())
+                });
+                token
+            },
             None => {
                 eprintln!("Missing table `[discord]`.");
                 "discord".to_string()
