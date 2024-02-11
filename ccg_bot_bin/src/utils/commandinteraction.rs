@@ -13,8 +13,8 @@ use serde::{Deserialize, Serialize};
 use serenity::all::{
     ApplicationId, Attachment as SerenityAttachment, AttachmentId, AutoArchiveDuration, ChannelId,
     ChannelType, Color, CommandData, CommandDataOption, CommandDataOptionValue,
-    CommandDataResolved, CommandId, CommandType, Entitlement, GuildId, Interaction, InteractionId,
-    Member, PartialChannel as SerenityPartialChannel, Permissions, Role as SerenityRole, RoleId,
+    CommandDataResolved, CommandId, CommandType, GuildId, Interaction, InteractionId, Member,
+    PartialChannel as SerenityPartialChannel, Permissions, Role as SerenityRole, RoleId,
     RoleTags as SerenityRoleTags, TargetId, ThreadMetadata as SerenityThreadMetadata, User, UserId,
 };
 use serenity::model::Timestamp;
@@ -119,15 +119,13 @@ pub struct CommandInteraction {
     pub locale: String,
     /// The guild's preferred locale.
     pub guild_locale: Option<String>,
-    /// Entitlements for app sku(if any)
-    pub entitlements: Vec<Entitlement>,
 }
 
 impl std::fmt::Display for CommandInteraction {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "{}, {:?}, {:?}, {:?}, {:?}, {}, {:?}, {}, {}, {}, {:?}, {}, {:?}, {:?}",
+            "{}, {:?}, {:?}, {:?}, {:?}, {}, {:?}, {}, {}, {}, {:?}, {}, {:?}",
             self.id,
             self.application_id,
             self.data,
@@ -141,7 +139,6 @@ impl std::fmt::Display for CommandInteraction {
             self.app_permissions,
             self.locale,
             self.guild_locale,
-            self.entitlements
         )
     }
 }
@@ -169,7 +166,6 @@ impl From<Interaction> for CommandInteraction {
             app_permissions: ci.app_permissions,
             locale: ci.locale,
             guild_locale: ci.guild_locale,
-            entitlements: ci.entitlements,
         }
     }
 }
@@ -434,7 +430,7 @@ pub struct Attachment {
     /// Timestamp indicating when the URL was issued
     #[serde(default, skip_serializing_if = "is_none", with = "approx_instant")]
     pub is: Option<Instant>,
-    /// Unique sinature that remains valid until [`ex`]
+    /// Unique sinature that remains valid until [`ex`](self::Attachment::ex)
     #[serde(default, skip_serializing_if = "is_none")]
     pub hm: Option<String>,
 }
@@ -444,7 +440,7 @@ impl From<SerenityAttachment> for Attachment {
         let bogus_is = Instant::now();
         // 86400 seconds is a day, so a fair guess for now
         // Might be supported too by observed links
-        let bogus_ex = Instant::now() - std::time::Duration::new(86400_64, 0_32);
+        let bogus_ex = Instant::now() - std::time::Duration::new(86400_u64, 0_u32);
         Self {
             id: value.id,
             filename: value.filename,
@@ -899,7 +895,6 @@ mod tests {
             app_permissions: None,
             locale: String::from(""),
             guild_locale: None,
-            entitlements: vec![],
         };
         let _ = test_interaction.clone(); //derive(Clone)
         let ti_string = serde_json::to_string(&test_interaction); //derive(Serialize)

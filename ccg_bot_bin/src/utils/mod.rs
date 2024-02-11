@@ -17,6 +17,7 @@ pub mod prelude {
     pub use super::json::*;
 }
 
+#[cfg(any(feature = "discord", feature = "full"))]
 pub(crate) fn default_discriminator() -> Option<NonZeroU16> {
     NonZeroU16::new(1u16)
 }
@@ -41,13 +42,13 @@ pub struct TestUser {
     // We aren't requiring nor requesting this information and thereby these two field are None
     /// Whether the email on this account has been verified
     ///
-    /// Requires [`Scope::Email`]
+    /// Requires `Scope::Email`
     #[serde(default)]
     pub verified: Option<bool>,
     // We aren't requiring nor requesting this information and thereby these two field are None
     /// The user's email
     ///
-    /// Requires [`Scope::Email`]
+    /// Requires `Scope::Email`
     #[serde(default)]
     pub email: Option<String>,
     #[serde(default)]
@@ -58,6 +59,7 @@ pub struct TestUser {
     pub member: Option<Box<PartialMember>>,
 }
 
+#[cfg(any(feature = "discord", feature = "full"))]
 impl Default for TestUser {
     fn default() -> Self {
         Self {
@@ -81,6 +83,7 @@ impl Default for TestUser {
     }
 }
 
+#[cfg(any(feature = "discord", feature = "full"))]
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct LocalPartialMember {
     #[serde(default)]
@@ -98,6 +101,7 @@ pub struct LocalPartialMember {
     pub permissions: Option<Permissions>,
 }
 
+#[cfg(any(feature = "discord", feature = "full"))]
 fn default_pm() -> Option<Box<PartialMember>> {
     let local_partial_member = LocalPartialMember::default();
     let pm = serde_json::from_str(&serde_json::to_string(&local_partial_member).expect(""))

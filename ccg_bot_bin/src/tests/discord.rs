@@ -254,7 +254,6 @@ async fn id_command() {
         app_permissions: None,
         locale: String::from(""),
         guild_locale: None,
-        entitlements: vec![],
     };
     // let options = test_ci;
     // let cache = Cache::new();
@@ -377,7 +376,6 @@ async fn no_member_id_command() {
         app_permissions: None,
         locale: String::from(""),
         guild_locale: None,
-        entitlements: vec![],
     };
     let options = test_ci;
     let token = Config::new().discord_token;
