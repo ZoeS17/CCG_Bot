@@ -60,6 +60,7 @@ jobs:
         shell: cmd
         run: |
           choco install openssl
+          echo "OPENSSL_DIR='C:\Program Files\OpenSSL'" >> $GITHUB_ENV
       - name: Install mysql (Windows)
         if: runner.os == 'Windows'
         shell: cmd
