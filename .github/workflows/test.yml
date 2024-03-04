@@ -55,6 +55,11 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: true
+      - name: Install OpenSSL (Windows)
+        if: runner.os == 'Windows'
+        shell: cmd
+        run: |
+          choco install openssl
       - name: Install mysql (Windows)
         if: runner.os == 'Windows'
         shell: cmd
