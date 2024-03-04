@@ -75,7 +75,7 @@ jobs:
     # https://docs.github.com/en/actions/learn-github-actions/contexts#context-availability
     strategy:
       matrix:
-        msrv: ["1.72.0"] # serenity-rs@next (0.12)
+        msrv: ["1.74.0"] # serenity-rs@0.12.0
     name: ubuntu / ${{ matrix.msrv }}
     steps:
       - uses: actions/checkout@v4
