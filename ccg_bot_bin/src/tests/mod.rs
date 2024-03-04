@@ -11,8 +11,6 @@ macro_rules! aw {
     };
 }
 
-#[cfg(any(feature = "default", feature = "discord", feature = "full"))]
-pub mod discord;
 #[cfg(any(feature = "default", feature = "twitch", feature = "full"))]
 pub mod twitch;
 

@@ -2,6 +2,9 @@
 
 //crate
 use crate::config::Config;
+//skip reordering to allow easy reference to verbosity(from least to most)
+#[rustfmt::skip]
+use crate::{info, debug, trace};
 
 //std
 use std::error;

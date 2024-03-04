@@ -6,9 +6,10 @@
 //Crate doc
 #![doc = include_str!("../../README.md")]
 
-#[cfg(any(feature = "discord", feature = "full", feature = "twitch"))]
-#[macro_use]
-extern crate tracing;
+//skip reordering to allow easy reference to verbosity(from least to most)
+#[rustfmt::skip]
+#[cfg(any(feature = "discord", feature = "full", feature = "twitch", test))]
+pub use tracing::{error, warn, info, debug, trace};
 
 //crate
 //use ccg_bot_sys;
@@ -17,6 +18,10 @@ use config::Config;
 
 // serde
 use serde_json::Error as JsonError;
+
+// small-array
+// #[cfg(any(feature = "discord", feature = "full"))]
+// pub use small_fixed_array::{FixedArray, FixedString};
 
 //std
 use std::env;

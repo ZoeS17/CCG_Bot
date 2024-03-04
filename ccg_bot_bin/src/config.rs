@@ -1,3 +1,4 @@
+use crate::env;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::io::Error as IoError;
@@ -83,12 +84,13 @@ impl Config {
                 break;
             }
         }
+        let config_toml_result: Result<ConfigToml, toml::de::Error> = toml::from_str(&content);
         // All this because it isn't read otherwise... The heck Rust
         #[cfg(not(any(feature = "discord", feature = "full", feature = "twitch")))]
-        let _: ConfigToml = toml::from_str(&content).unwrap_or_else(|_| ConfigToml {});
+        let _: ConfigToml = config_toml_result.unwrap_or_else(|_| ConfigToml {});
         #[cfg(any(feature = "twitch", feature = "discord", feature = "full"))]
-        let config_toml: ConfigToml = toml::from_str(&content).unwrap_or_else(|_| {
-            error!("Failed to create ConfigToml object out of config file.");
+        let config_toml: ConfigToml = config_toml_result.unwrap_or_else(|_| {
+            eprintln!("Failed to create ConfigToml object out of config file.");
             ConfigToml {
                 #[cfg(any(feature = "discord", feature = "full"))]
                 discord: None,
@@ -98,10 +100,16 @@ impl Config {
         });
         #[cfg(any(feature = "discord", feature = "full"))]
         let discord_guildid: String = match config_toml.discord.clone() {
-            Some(dgid) => dgid.guildid.unwrap_or_else(|| {
-                error!("Missing field `guildid` in table [discord]");
-                "0".to_string()
-            }),
+            Some(dgid) => {
+                #[cfg(test)]
+                let di = env::var("DISCORD_GUILD_ID").unwrap_or_else(|_| "0".to_string());
+                #[cfg(not(test))]
+                let di = dgid.guildid.unwrap_or_else(|| {
+                    eprintln!("Missing field `guildid` in table [discord]");
+                    env::var("DISCORD_GUILD_ID").unwrap_or_else(|_| "0".to_string())
+                });
+                di
+            },
             None => {
                 eprintln!("Missing table `[discord]`.");
                 "0".to_string()
@@ -109,67 +117,73 @@ impl Config {
         };
         #[cfg(any(feature = "discord", feature = "full"))]
         let discord_token: String = match config_toml.discord {
-            Some(dt) => dt.token.unwrap_or_else(|| {
-                error!("Missing field `token` in table [discord]");
-                "discord".to_string()
-            }),
+            Some(dt) => {
+                #[cfg(test)]
+                let token = env::var("DISCORD_TOKEN").unwrap_or_else(|_| "discord".to_string());
+                #[cfg(not(test))]
+                let token = dt.token.unwrap_or_else(|| {
+                    eprintln!("Missing field `token` in table [discord]");
+                    env::var("DISCORD_TOKEN").unwrap_or_else(|_| "discord".to_string())
+                });
+                token
+            },
             None => {
-                error!("Missing table `[discord]`.");
+                eprintln!("Missing table `[discord]`.");
                 "discord".to_string()
             },
         };
         #[cfg(any(feature = "twitch", feature = "full"))]
         let twitch_bot_name: String = match config_toml.twitch.clone() {
             Some(tbn) => tbn.bot_name.unwrap_or_else(|| {
-                error!("Missing field `bot_name` in table [twitch]");
+                eprintln!("Missing field `bot_name` in table [twitch]");
                 "twitch".to_string()
             }),
             None => {
-                error!("Missing table `[twitch]`.");
+                eprintln!("Missing table `[twitch]`.");
                 "twitch".to_string()
             },
         };
         #[cfg(any(feature = "twitch", feature = "full"))]
         let twitch_channels: Vec<String> = match config_toml.twitch.clone() {
             Some(tc) => tc.channels.unwrap_or_else(|| {
-                error!("Missing field `channels` in table [twitch]");
+                eprintln!("Missing field `channels` in table [twitch]");
                 vec!["twitch".to_owned()]
             }),
             None => {
-                error!("Missing table `[twitch]`.");
+                eprintln!("Missing table `[twitch]`.");
                 vec!["twitch".to_owned()]
             },
         };
         #[cfg(any(feature = "twitch", feature = "full"))]
         let twitch_client_id: String = match config_toml.twitch.clone() {
             Some(tci) => tci.client_id.unwrap_or_else(|| {
-                error!("Missing field `client_id` in table [twitch]");
+                eprintln!("Missing field `client_id` in table [twitch]");
                 "twitch".to_string()
             }),
             None => {
-                error!("Missing table `[twitch]`.");
+                eprintln!("Missing table `[twitch]`.");
                 "twitch".to_string()
             },
         };
         #[cfg(any(feature = "twitch", feature = "full"))]
         let twitch_client_secret: String = match config_toml.twitch.clone() {
             Some(tcs) => tcs.client_secret.unwrap_or_else(|| {
-                error!("Missing field `client_secret` in table [twitch]");
+                eprintln!("Missing field `client_secret` in table [twitch]");
                 "twitch".to_string()
             }),
             None => {
-                error!("Missing table `[twitch]`.");
+                eprintln!("Missing table `[twitch]`.");
                 "twitch".to_string()
             },
         };
         #[cfg(any(feature = "twitch", feature = "full"))]
         let twitch_redirect_url: String = match config_toml.twitch {
             Some(rdu) => rdu.redirect_url.unwrap_or_else(|| {
-                error!("Missing field `redirect_url` in table [twitch]");
+                eprintln!("Missing field `redirect_url` in table [twitch]");
                 "twitch".to_string()
             }),
             None => {
-                error!("Missing table `[twitch]`.");
+                eprintln!("Missing table `[twitch]`.");
                 "twitch".to_string()
             },
         };

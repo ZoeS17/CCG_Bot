@@ -4,11 +4,13 @@ use serenity::model::user::CurrentUser;
 
 lazy_static! {
     #[derive(Debug, Eq, PartialEq)]
-    pub static ref CACHE: CurrentUser = Cache::default().current_user();
+    pub static ref CACHE: Cache = Cache::default();
     #[derive(Debug, Eq, PartialEq)]
-    pub static ref BOT_NAME: String = CACHE.clone().name;
+    pub static ref CURRENT_USER: CurrentUser = CACHE.current_user().deref().clone();
     #[derive(Debug, Eq, PartialEq)]
-    pub static ref BOT_URL: String = CACHE.clone().face();
+    pub static ref BOT_NAME: String = CURRENT_USER.name.clone();
+    #[derive(Debug, Eq, PartialEq)]
+    pub static ref BOT_URL: String = CURRENT_USER.face();
 }
 
 #[cfg(test)]
