@@ -233,14 +233,12 @@ impl serde::Serialize for TestShardInfo {
 pub mod tests {
     use super::*;
     use crate::utils::TestUser;
-    use crate::{
-        config::Config, tests::discord::CurrentUser, utils::json::prelude::from_str, StdResult,
-    };
+    use crate::{config::Config, utils::json::prelude::from_str, StdResult};
     use error::Error;
     use serde::{Deserialize, Serialize};
     use serenity::all::{
         ApplicationFlags, ApplicationId, Cache, ChannelType as SerenityChannelType,
-        CommandInteraction as SerenityCommandInteraction, ConnectionStage, Http,
+        CommandInteraction as SerenityCommandInteraction, ConnectionStage, CurrentUser, Http,
         PartialCurrentApplicationInfo, PresenceData, Ready, Shard, ShardId, ShardInfo,
         ShardManager, ShardManagerOptions, ShardMessenger, ShardRunner, ShardRunnerOptions,
         UnavailableGuild,
@@ -265,7 +263,7 @@ pub mod tests {
 
     async fn test_ws(url: String) -> &'static AbortHandle {
         let server_result = TcpListener::bind(url.as_str()).await.map_err(|_| {});
-        dbg!(&server_result);
+        // dbg!(&server_result);
         let server =
             WS_SERVER.get_or_init(|| server_result.expect("Couldn't bind to a socket at {url}\n"));
         let server_handle = tokio::spawn(async move {
@@ -380,305 +378,305 @@ pub mod tests {
             }
         }
     }
+    //TODO: Figure out a test suite that let's us do this without a token and/or discord connection
+    //pub async fn setup_vars() -> (&'static AbortHandle, Handler, Context, Ready) {
+    //    let cache = Cache::new();
+    //    let c = Arc::new(cache);
+    //    let token = Config::new().discord_token;
+    //    let http = Arc::new(Http::new(&token));
+    //    let raw_ws_url = String::from("127.0.0.1:8000");
+    //    let test_server = test_ws(raw_ws_url.clone()).await;
+    //    let ws_url_with_proto = String::from("ws://") + raw_ws_url.as_str() + "/";
+    //    let ws_url = Arc::new(Mutex::new(ws_url_with_proto));
+    //    let manager_options = ShardManagerOptions {
+    //        data: Arc::new(RwLock::new(TypeMap::new())),
+    //        event_handlers: vec![],
+    //        raw_event_handlers: vec![],
+    //        shard_index: 0u32,
+    //        shard_init: 0u32,
+    //        shard_total: 1u32,
+    //        ws_url: ws_url.clone(),
+    //        cache: c.clone(),
+    //        http: http.clone(),
+    //        intents: GatewayIntents::default(),
+    //        presence: None,
+    //    };
+    //    let manager = ShardManager::new(manager_options).0;
+    //    let _ = manager.initialize();
+    //    let test_shard_info = TestShardInfo { id: ShardId(0u32), total: 1u32 };
+    //    let test_shard_info_string = serde_json::to_string(&test_shard_info).expect("");
+    //    let shard_info: ShardInfo = serde_json::from_str(&test_shard_info_string).expect("");
+    //    let shard =
+    //        Shard::new(ws_url, "", shard_info, GatewayIntents::default(), None).await.expect("");
+    //    let runner_options = ShardRunnerOptions {
+    //        data: Default::default(),
+    //        event_handlers: vec![],
+    //        raw_event_handlers: vec![],
+    //        manager,
+    //        shard,
+    //        cache: c,
+    //        http,
+    //    };
+    //    let runner = ShardRunner::new(runner_options);
+    //    let handler_context = Context {
+    //        data: Arc::new(RwLock::new(TypeMap::new())),
+    //        shard: ShardMessenger::new(&runner),
+    //        shard_id: ShardId(0_u32),
+    //        http: Arc::new(Http::new("")),
+    //        cache: Arc::new(Cache::new()),
+    //    };
+    //    let handler = Handler(Config::default());
+    //    let user_obj = TestUser::default();
+    //    let current_user_str = serde_json::to_string(&user_obj)
+    //        .expect("Upstream may have broken our struct due to inheritance");
+    //    let current_user: CurrentUser = serde_json::from_str(&current_user_str)
+    //        .expect("Upstream may have broken our struct due to inheritance");
+    //    let app_id = ApplicationId::new(1_u64);
+    //    let app_flag = ApplicationFlags::default();
+    //    let partial_app_info: PartialCurrentApplicationInfo = serde_json::from_str(
+    //        &serde_json::to_string(&LocalAppInfo { id: app_id, flags: app_flag })
+    //            .expect("Upstream may have broken our struct due to inheritance"),
+    //    )
+    //    .expect("Upstream may have broken our struct due to inheritance");
+    //    let ready: Ready = serde_json::from_str(
+    //        &serde_json::to_string(&LocalReady {
+    //            version: 10u8,
+    //            user: current_user,
+    //            guilds: vec![],
+    //            session_id: Default::default(),
+    //            resume_gateway_url: Default::default(),
+    //            shard: Some(shard_info),
+    //            application: partial_app_info,
+    //        })
+    //        .expect("Upstream may have broken our struct due to inheritance"),
+    //    )
+    //    .expect("Upstream may have broken our struct due to inheritance");
 
-    pub async fn setup_vars() -> (&'static AbortHandle, Handler, Context, Ready) {
-        let cache = Cache::new();
-        let c = Arc::new(cache);
-        let token = Config::new().discord_token;
-        let http = Arc::new(Http::new(&token));
-        let raw_ws_url = String::from("127.0.0.1:8000");
-        let test_server = test_ws(raw_ws_url.clone()).await;
-        let ws_url_with_proto = String::from("ws://") + raw_ws_url.as_str() + "/";
-        let ws_url = Arc::new(Mutex::new(ws_url_with_proto));
-        let manager_options = ShardManagerOptions {
-            data: Arc::new(RwLock::new(TypeMap::new())),
-            event_handlers: vec![],
-            raw_event_handlers: vec![],
-            shard_index: 0u32,
-            shard_init: 0u32,
-            shard_total: 1u32,
-            ws_url: ws_url.clone(),
-            cache: c.clone(),
-            http: http.clone(),
-            intents: GatewayIntents::default(),
-            presence: None,
-        };
-        let manager = ShardManager::new(manager_options).0;
-        let _ = manager.initialize();
-        let test_shard_info = TestShardInfo { id: ShardId(0u32), total: 1u32 };
-        let test_shard_info_string = serde_json::to_string(&test_shard_info).expect("");
-        let shard_info: ShardInfo = serde_json::from_str(&test_shard_info_string).expect("");
-        let shard =
-            Shard::new(ws_url, "", shard_info, GatewayIntents::default(), None).await.expect("");
-        let runner_options = ShardRunnerOptions {
-            data: Default::default(),
-            event_handlers: vec![],
-            raw_event_handlers: vec![],
-            manager,
-            shard,
-            cache: c,
-            http,
-        };
-        let runner = ShardRunner::new(runner_options);
-        let handler_context = Context {
-            data: Arc::new(RwLock::new(TypeMap::new())),
-            shard: ShardMessenger::new(&runner),
-            shard_id: ShardId(0_u32),
-            http: Arc::new(Http::new("")),
-            cache: Arc::new(Cache::new()),
-        };
-        let handler = Handler(Config::default());
-        let user_obj = TestUser::default();
-        let current_user_str = serde_json::to_string(&user_obj)
-            .expect("Upstream may have broken our struct due to inheritance");
-        let current_user: CurrentUser = serde_json::from_str(&current_user_str)
-            .expect("Upstream may have broken our struct due to inheritance");
-        let app_id = ApplicationId::new(1_u64);
-        let app_flag = ApplicationFlags::default();
-        let partial_app_info: PartialCurrentApplicationInfo = serde_json::from_str(
-            &serde_json::to_string(&LocalAppInfo { id: app_id, flags: app_flag })
-                .expect("Upstream may have broken our struct due to inheritance"),
-        )
-        .expect("Upstream may have broken our struct due to inheritance");
-        let ready: Ready = serde_json::from_str(
-            &serde_json::to_string(&LocalReady {
-                version: 10u8,
-                user: current_user,
-                guilds: vec![],
-                session_id: Default::default(),
-                resume_gateway_url: Default::default(),
-                shard: Some(shard_info),
-                application: partial_app_info,
-            })
-            .expect("Upstream may have broken our struct due to inheritance"),
-        )
-        .expect("Upstream may have broken our struct due to inheritance");
+    //    (test_server, handler, handler_context, ready)
+    //}
 
-        (test_server, handler, handler_context, ready)
-    }
+    //#[tokio::test]
+    //async fn handler_interaction_create() -> Result<(), crate::DiscordError> {
+    //    // use crate::tests::discord::test_logging;
+    //    // use crate::tests::discord::test_logging::Level;
+    //    // test_logging::init(Level::Debug);
+    //    let (test_server, handler, handler_context, ready) = setup_vars().await;
+    //    let handler_interaction_command_ping_str = r#"
+    //        {
+    //            "id": "1",
+    //            "application_id": "2",
+    //            "type": 2,
+    //            "data": {
+    //                "id": "1",
+    //                "name": "ping",
+    //                "type": 255,
+    //                "resolved": {},
+    //                "options": [],
+    //                "target_id": null
+    //            },
+    //            "channel": {
+    //                "id": 3,
+    //                "name": "Test Private Message",
+    //                "type": 1,
+    //                "permissions": null
+    //            },
+    //            "channel_id": "3",
+    //            "user": {
+    //                "id": "4",
+    //                "avatar": null,
+    //                "bot": false,
+    //                "discriminator": "0000",
+    //                "username": "",
+    //                "public_flags": null,
+    //                "banner": null,
+    //                "accent_color": null
+    //            },
+    //            "token": "DUMMYTOKEN",
+    //            "version": 0,
+    //            "app_permissions": "104320065",
+    //            "locale": "en-US",
+    //            "guild_locale": "en-US",
+    //            "entitlements": []
+    //        }
+    //    "#
+    //    .replace(
+    //        "DUMMYTOKEN",
+    //        env::var("DISCORD_TOKEN")
+    //            .expect("Please set DISCORD_TOKEN in your environment")
+    //            .as_str(),
+    //    );
+    //    let handler_interaction_command_id_str = r#"
+    //        {
+    //            "id": "1",
+    //            "application_id": "2",
+    //            "type": 2,
+    //            "data": {
+    //                "id": "1",
+    //                "name": "id",
+    //                "type": 255,
+    //                "resolved": {
+    //                    "users": {
+    //                        "379001295744532481": {
+    //                            "id": "379001295744532481",
+    //                            "avatar": "d41d8cd98f00b204e9800998ecf8427e",
+    //                            "bot": true,
+    //                            "discriminator": 0,
+    //                            "username": "Test",
+    //                            "public_flags": null,
+    //                            "banner": null,
+    //                            "accent_colour": null
+    //                        }
+    //                    }
+    //                },
+    //                "options": [
+    //                    {
+    //                        "name": "id",
+    //                        "value": "379001295744532481",
+    //                        "type": 6,
+    //                        "options": [],
+    //                        "resolved": {
+    //                            "User": [
+    //                                {
+    //                                    "id":"379001295744532481",
+    //                                    "avatar": "d41d8cd98f00b204e9800998ecf8427e",
+    //                                    "bot": true,
+    //                                    "discriminator": "0000",
+    //                                    "username": "Test",
+    //                                    "public_flags": null,
+    //                                    "banner": null,
+    //                                    "accent_color": null
+    //                                },
+    //                                {
+    //                                    "deaf": false,
+    //                                    "joined_at": "2015-10-03T13:52:36.422Z",
+    //                                    "mute": false,
+    //                                    "nick": null,
+    //                                    "roles": [],
+    //                                    "pending": false,
+    //                                    "premium_since": null,
+    //                                    "guild_id": null,
+    //                                    "user": null,
+    //                                    "permissions": "0"
+    //                                }
+    //                            ]
+    //                        },
+    //                        "focused":false
+    //                    }
+    //                ],
+    //                "target_id": null
+    //            },
+    //            "channel": {
+    //                "id": 3,
+    //                "name": "Test Private Message",
+    //                "type": 1,
+    //                "permissions": null
 
-    #[tokio::test]
-    async fn handler_interaction_create() -> Result<(), crate::DiscordError> {
-        // use crate::tests::discord::test_logging;
-        // use crate::tests::discord::test_logging::Level;
-        // test_logging::init(Level::Debug);
-        let (test_server, handler, handler_context, ready) = setup_vars().await;
-        let handler_interaction_command_ping_str = r#"
-            {
-                "id": "1",
-                "application_id": "2",
-                "type": 2,
-                "data": {
-                    "id": "1",
-                    "name": "ping",
-                    "type": 255,
-                    "resolved": {},
-                    "options": [],
-                    "target_id": null
-                },
-                "channel": {
-                    "id": 3,
-                    "name": "Test Private Message",
-                    "type": 1,
-                    "permissions": null
-                },
-                "channel_id": "3",
-                "user": {
-                    "id": "4",
-                    "avatar": null,
-                    "bot": false,
-                    "discriminator": "0000",
-                    "username": "",
-                    "public_flags": null,
-                    "banner": null,
-                    "accent_color": null
-                },
-                "token": "DUMMYTOKEN",
-                "version": 0,
-                "app_permissions": "104320065",
-                "locale": "en-US",
-                "guild_locale": "en-US",
-                "entitlements": []
-            }
-        "#
-        .replace(
-            "DUMMYTOKEN",
-            env::var("DISCORD_TOKEN")
-                .expect("Please set DISCORD_TOKEN in your environment")
-                .as_str(),
-        );
-        let handler_interaction_command_id_str = r#"
-            {
-                "id": "1",
-                "application_id": "2",
-                "type": 2,
-                "data": {
-                    "id": "1",
-                    "name": "id",
-                    "type": 255,
-                    "resolved": {
-                        "users": {
-                            "379001295744532481": {
-                                "id": "379001295744532481",
-                                "avatar": "d41d8cd98f00b204e9800998ecf8427e",
-                                "bot": true,
-                                "discriminator": 0,
-                                "username": "Test",
-                                "public_flags": null,
-                                "banner": null,
-                                "accent_colour": null
-                            }
-                        }
-                    },
-                    "options": [
-                        {
-                            "name": "id",
-                            "value": "379001295744532481",
-                            "type": 6,
-                            "options": [],
-                            "resolved": {
-                                "User": [
-                                    {
-                                        "id":"379001295744532481",
-                                        "avatar": "d41d8cd98f00b204e9800998ecf8427e",
-                                        "bot": true,
-                                        "discriminator": "0000",
-                                        "username": "Test",
-                                        "public_flags": null,
-                                        "banner": null,
-                                        "accent_color": null
-                                    },
-                                    {
-                                        "deaf": false,
-                                        "joined_at": "2015-10-03T13:52:36.422Z",
-                                        "mute": false,
-                                        "nick": null,
-                                        "roles": [],
-                                        "pending": false,
-                                        "premium_since": null,
-                                        "guild_id": null,
-                                        "user": null,
-                                        "permissions": "0"
-                                    }
-                                ]
-                            },
-                            "focused":false
-                        }                        
-                    ],
-                    "target_id": null
-                },
-                "channel": {
-                    "id": 3,
-                    "name": "Test Private Message",
-                    "type": 1,
-                    "permissions": null
+    //            },
+    //            "channel_id": "3",
+    //            "user": {
+    //                "id": "4",
+    //                "avatar": null,
+    //                "bot": false,
+    //                "discriminator": "0000",
+    //                "username": "",
+    //                "public_flags": null,
+    //                "banner": null,
+    //                "accent_color": null
+    //            },
+    //            "token": "DUMMYTOKEN",
+    //            "version": 0,
+    //            "app_permissions": "104320065",
+    //            "locale": "en-US",
+    //            "guild_locale": "en-US",
+    //            "entitlements": []
+    //        }
+    //    "#
+    //    .replace(
+    //        "DUMMYTOKEN",
+    //        env::var("DISCORD_TOKEN")
+    //            .expect("Please set DISCORD_TOKEN in your environment")
+    //            .as_str(),
+    //    );
 
-                },
-                "channel_id": "3",
-                "user": {
-                    "id": "4",
-                    "avatar": null,
-                    "bot": false,
-                    "discriminator": "0000",
-                    "username": "",
-                    "public_flags": null,
-                    "banner": null,
-                    "accent_color": null
-                },
-                "token": "DUMMYTOKEN",
-                "version": 0,
-                "app_permissions": "104320065",
-                "locale": "en-US",
-                "guild_locale": "en-US",
-                "entitlements": []
-            }
-        "#
-        .replace(
-            "DUMMYTOKEN",
-            env::var("DISCORD_TOKEN")
-                .expect("Please set DISCORD_TOKEN in your environment")
-                .as_str(),
-        );
+    //    let _ = handler.ready(handler_context.clone(), /* Ready{ .. }*/ ready);
+    //    //ping
+    //    let handler_interaction_command_ping: SerenityCommandInteraction =
+    //        from_str(&handler_interaction_command_ping_str).unwrap();
+    //    let handler_interaction_ping = Interaction::Command(handler_interaction_command_ping);
+    //    let _ = handler.interaction_create(handler_context.clone(), handler_interaction_ping).await;
+    //    //id
+    //    let handler_interaction_command_id: SerenityCommandInteraction =
+    //        from_str(&handler_interaction_command_id_str).unwrap();
+    //    dbg!(&handler_interaction_command_id);
+    //    let handler_interaction_id = Interaction::Command(handler_interaction_command_id);
+    //    dbg!(&handler_interaction_id);
+    //    test_server.abort();
+    //    eprintln!("test_server.abort()");
+    //    let _ = handler.interaction_create(handler_context, handler_interaction_id).await;
+    //    Ok(())
+    //}
 
-        let _ = handler.ready(handler_context.clone(), /* Ready{ .. }*/ ready);
-        //ping
-        let handler_interaction_command_ping: SerenityCommandInteraction =
-            from_str(&handler_interaction_command_ping_str).unwrap();
-        let handler_interaction_ping = Interaction::Command(handler_interaction_command_ping);
-        let _ = handler.interaction_create(handler_context.clone(), handler_interaction_ping).await;
-        //id
-        let handler_interaction_command_id: SerenityCommandInteraction =
-            from_str(&handler_interaction_command_id_str).unwrap();
-        dbg!(&handler_interaction_command_id);
-        let handler_interaction_id = Interaction::Command(handler_interaction_command_id);
-        dbg!(&handler_interaction_id);
-        test_server.abort();
-        eprintln!("test_server.abort()");
-        let _ = handler.interaction_create(handler_context, handler_interaction_id).await;
-        Ok(())
-    }
-
-    #[tokio::test]
-    #[should_panic]
-    async fn unimplemented_handler_interaction_create() {
-        // use crate::tests::discord::test_logging;
-        // use crate::tests::discord::test_logging::Level;
-        // test_logging::init(Level::Debug);
-        let (test_server, handler, handler_context, ready) = setup_vars().await;
-        let handler_interaction_command_never_str = r#"
-            {
-                "id": "1",
-                "application_id": "2",
-                "type": 2,
-                "data": {
-                    "id": "1",
-                    "name": "💀",
-                    "type": 255,
-                    "resolved": {
-                        "users": {
-                            "379001295744532481": {
-                                "id": "379001295744532481",
-                                "avatar": "d41d8cd98f00b204e9800998ecf8427e",
-                                "bot": true,
-                                "discriminator": 0,
-                                "username": "Test",
-                                "public_flags": null,
-                                "banner": null,
-                                "accent_colour": null
-                            }
-                        }
-                    },
-                    "options": [],
-                    "target_id": null
-                },
-                "channel_id": "3",
-                "user": {
-                    "id": "4",
-                    "avatar": null,
-                    "bot": false,
-                    "discriminator": "0000",
-                    "username": "",
-                    "public_flags": null,
-                    "banner": null,
-                    "accent_color": null
-                },
-                "token": "DUMMYTOKEN",
-                "version": 0,
-                "app_permissions": "104320065",
-                "locale": "en-US",
-                "guild_locale": "en-US",
-                "entitlements": []
-            }
-        "#;
-        let _ = handler.ready(handler_context.clone(), ready);
-        //unimplemented
-        let handler_interaction_command_never: SerenityCommandInteraction =
-            from_str(handler_interaction_command_never_str).expect("");
-        let handler_interaction_never = Interaction::Command(handler_interaction_command_never);
-        test_server.abort();
-        eprintln!("test_server.abort()");
-        let _ = handler.interaction_create(handler_context, handler_interaction_never).await;
-    }
+    //#[tokio::test]
+    //#[should_panic]
+    //async fn unimplemented_handler_interaction_create() {
+    //    // use crate::tests::discord::test_logging;
+    //    // use crate::tests::discord::test_logging::Level;
+    //    // test_logging::init(Level::Debug);
+    //    let (test_server, handler, handler_context, ready) = setup_vars().await;
+    //    let handler_interaction_command_never_str = r#"
+    //        {
+    //            "id": "1",
+    //            "application_id": "2",
+    //            "type": 2,
+    //            "data": {
+    //                "id": "1",
+    //                "name": "💀",
+    //                "type": 255,
+    //                "resolved": {
+    //                    "users": {
+    //                        "379001295744532481": {
+    //                            "id": "379001295744532481",
+    //                            "avatar": "d41d8cd98f00b204e9800998ecf8427e",
+    //                            "bot": true,
+    //                            "discriminator": 0,
+    //                            "username": "Test",
+    //                            "public_flags": null,
+    //                            "banner": null,
+    //                            "accent_colour": null
+    //                        }
+    //                    }
+    //                },
+    //                "options": [],
+    //                "target_id": null
+    //            },
+    //            "channel_id": "3",
+    //            "user": {
+    //                "id": "4",
+    //                "avatar": null,
+    //                "bot": false,
+    //                "discriminator": "0000",
+    //                "username": "",
+    //                "public_flags": null,
+    //                "banner": null,
+    //                "accent_color": null
+    //            },
+    //            "token": "DUMMYTOKEN",
+    //            "version": 0,
+    //            "app_permissions": "104320065",
+    //            "locale": "en-US",
+    //            "guild_locale": "en-US",
+    //            "entitlements": []
+    //        }
+    //    "#;
+    //    let _ = handler.ready(handler_context.clone(), ready);
+    //    //unimplemented
+    //    let handler_interaction_command_never: SerenityCommandInteraction =
+    //        from_str(handler_interaction_command_never_str).expect("");
+    //    let handler_interaction_never = Interaction::Command(handler_interaction_command_never);
+    //    test_server.abort();
+    //    eprintln!("test_server.abort()");
+    //    let _ = handler.interaction_create(handler_context, handler_interaction_never).await;
+    //}
 
     #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, PartialOrd, Ord, Serialize)]
     #[repr(u8)]
@@ -724,64 +722,65 @@ pub mod tests {
         }
     }
 
-    #[tokio::test]
-    async fn handler_message() {
-        let (test_server, handler, handler_context, _ready) = setup_vars().await;
-        let message_str = r#"{
-            "id": "1093709276008161320",
-            "attachments": [],
-            "author": {
-                "id": "379001295744532481",
-                "avatar": "d41d8cd98f00b204e9800998ecf8427e",
-                "bot": true,
-                "discriminator": "0000",
-                "username": "Test",
-                "public_flags": null,
-                "banner": null,
-                "accent_color": null
-            },
-            "channel_id": "3",
-            "content": "Test content",
-            "edited_timestamp": null,
-            "embeds": [],
-            "guild_id": "5",
-            "type": 0,
-            "member": {
-                "deaf": false,
-                "joined_at": "2023-04-01T01:00:00.000Z",
-                "mute": false,
-                "nick": null,
-                "roles": [],
-                "pending": false,
-                "premium_since": null,
-                "guild_id": null,
-                "user": null,
-                "permissions": null
-            },
-            "mention_everyone": false,
-            "mention_roles": [],
-            "mention_channels": [],
-            "mentions": [],
-            "nonce": "1093709276008161320",
-            "pinned": false,
-            "reactions": [],
-            "timestamp": "2023-04-07T01:30:11.536Z",
-            "tts": false,
-            "webhook_id": null,
-            "activity": null,
-            "application": null,
-            "message_reference": null,
-            "flags": 0,
-            "sticker_items": [],
-            "referenced_message": null,
-            "interaction": null,
-            "components": []
-        }"#;
-        let message: Message = from_str(message_str).unwrap();
-        let _ = handler.message(handler_context, message).await;
-        test_server.abort();
-        eprintln!("test_server.abort()");
-    }
+    //TODO: Figure out a test suite that let's us do this without a token and/or discord connection
+    // #[tokio::test]
+    // async fn handler_message() {
+    //     let (test_server, handler, handler_context, _ready) = setup_vars().await;
+    //     let message_str = r#"{
+    //         "id": "1093709276008161320",
+    //         "attachments": [],
+    //         "author": {
+    //             "id": "379001295744532481",
+    //             "avatar": "d41d8cd98f00b204e9800998ecf8427e",
+    //             "bot": true,
+    //             "discriminator": "0000",
+    //             "username": "Test",
+    //             "public_flags": null,
+    //             "banner": null,
+    //             "accent_color": null
+    //         },
+    //         "channel_id": "3",
+    //         "content": "Test content",
+    //         "edited_timestamp": null,
+    //         "embeds": [],
+    //         "guild_id": "5",
+    //         "type": 0,
+    //         "member": {
+    //             "deaf": false,
+    //             "joined_at": "2023-04-01T01:00:00.000Z",
+    //             "mute": false,
+    //             "nick": null,
+    //             "roles": [],
+    //             "pending": false,
+    //             "premium_since": null,
+    //             "guild_id": null,
+    //             "user": null,
+    //             "permissions": null
+    //         },
+    //         "mention_everyone": false,
+    //         "mention_roles": [],
+    //         "mention_channels": [],
+    //         "mentions": [],
+    //         "nonce": "1093709276008161320",
+    //         "pinned": false,
+    //         "reactions": [],
+    //         "timestamp": "2023-04-07T01:30:11.536Z",
+    //         "tts": false,
+    //         "webhook_id": null,
+    //         "activity": null,
+    //         "application": null,
+    //         "message_reference": null,
+    //         "flags": 0,
+    //         "sticker_items": [],
+    //         "referenced_message": null,
+    //         "interaction": null,
+    //         "components": []
+    //     }"#;
+    //     let message: Message = from_str(message_str).unwrap();
+    //     let _ = handler.message(handler_context, message).await;
+    //     test_server.abort();
+    //     eprintln!("test_server.abort()");
+    // }
 
     #[test]
     fn discorderr_derive_debug() {
