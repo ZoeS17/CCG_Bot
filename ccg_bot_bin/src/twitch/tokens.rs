@@ -163,6 +163,11 @@ impl From<GetAccessTokenResponse> for Token {
     }
 }
 
+fn non_op_dbg(message: String) -> bool {
+    trace!(message);
+    true
+}
+
 #[async_trait]
 impl TokenStorage for BotTokenStorage {
     type LoadError = std::io::Error; // or some other error
@@ -194,8 +199,8 @@ impl TokenStorage for BotTokenStorage {
             created_at: token.created_at.clone(),
             expires_at: Some(token.expires_at.clone()),
         };
-        debug_assert!(false, "[load_token] token = {token:?}");
-        debug_assert!(false, "uat {:?}", &uat);
+        debug_assert!(non_op_dbg(format!("[load_token] token = {token:?}")));
+        debug_assert!(non_op_dbg(format!("uat {:?}", &uat)));
         Ok(uat)
     }
 
@@ -206,7 +211,7 @@ impl TokenStorage for BotTokenStorage {
         self.set_env("REFRESH_TOKEN", &token.refresh_token).unwrap();
         self.set_env("TOKEN_CREATED_AT", token.created_at).unwrap();
         self.set_env("TOKEN_EXPIRES_AT", token.expires_at.unwrap_or_default()).unwrap();
-        debug_assert!(false, "[update_token] token = {token:?}");
+        debug_assert!(non_op_dbg(format!("[update_token] token = {token:?}")));
         Ok(())
     }
 }
