@@ -188,25 +188,25 @@ impl TokenStorage for BotTokenStorage {
         let token = Token { access_token: at, refresh_token: rt, created_at: ca, expires_at: ea };
         // Make this trace so that no accidently gives us their access token(s)
         // but so if needed due to any upstream changes unknown errors can be easier to debug
-        trace!("[load_token] token = {token:?}");
         let uat = UserAccessToken {
-            access_token: token.access_token,
-            refresh_token: token.refresh_token,
-            created_at: token.created_at,
-            expires_at: Some(token.expires_at),
+            access_token: String::from(&token.access_token),
+            refresh_token: String::from(&token.refresh_token),
+            created_at: token.created_at.clone(),
+            expires_at: Some(token.expires_at.clone()),
         };
-        trace!("uat {:?}", &uat);
+        debug_assert!(false, "[load_token] token = {token:?}");
+        debug_assert!(false, "uat {:?}", &uat);
         Ok(uat)
     }
 
     async fn update_token(&mut self, token: &UserAccessToken) -> Result<(), Self::UpdateError> {
         // Make this trace so that no accidently gives us their access token(s)
         // but so if needed due to any upstream changes unknown errors can be easier to debug
-        trace!("[update_token] token = {token:?}");
         self.set_env("ACCESS_TOKEN", &token.access_token).unwrap();
         self.set_env("REFRESH_TOKEN", &token.refresh_token).unwrap();
         self.set_env("TOKEN_CREATED_AT", token.created_at).unwrap();
         self.set_env("TOKEN_EXPIRES_AT", token.expires_at.unwrap_or_default()).unwrap();
+        debug_assert!(false, "[update_token] token = {token:?}");
         Ok(())
     }
 }

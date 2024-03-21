@@ -1,5 +1,5 @@
 use twitch_irc::login::RefreshingLoginCredentials;
-use twitch_irc::message::{Badge, IRCMessage, PrivmsgMessage, ServerMessage};
+use twitch_irc::message::{Badge, ClearMsgMessage, IRCMessage, PrivmsgMessage, ServerMessage};
 use twitch_irc::{transport::tcp::TCPTransport, TwitchIRCClient};
 
 use super::tokens::BotTokenStorage;
