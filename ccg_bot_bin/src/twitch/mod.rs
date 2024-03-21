@@ -115,77 +115,84 @@ pub async fn new(config: Config) -> Result<Handler, std::env::VarError> {
         RefreshingLoginCredentials<tokens::BotTokenStorage>,
     >::new(client_config);
     #[cfg(not(test))]
-    let client_clone = client.clone();
-    #[cfg(not(test))]
-    let join_handle = tokio::spawn(async move {
-        while let Some(message) = incoming_messages.recv().await {
-            match message {
-                //Match each of the non-exhaustive cases explictly so we can error on unknown ones
-                ServerMessage::ClearChat { .. } => {
-                    parse_message("trace", format!("{:?}", message));
-                },
-                ServerMessage::ClearMsg { .. } => {
-                    parse_message("trace", format!("{:?}", message));
-                },
-                ServerMessage::Generic { .. } => {
-                    parse_message("trace", format!("{:?}", message));
-                },
-                ServerMessage::GlobalUserState { .. } => {
-                    parse_message("trace", format!("{:?}", message));
-                },
-                ServerMessage::Join { .. } => {
-                    let m =
-                        JoinMessage::try_from(Into::<IRCMessage>::into(message.clone())).unwrap();
-                    println!("[twitch / #{}] {} joined", m.channel_login, m.user_login)
-                },
-                ServerMessage::Notice { .. } => {
-                    parse_message("trace", format!("{:?}", message));
-                },
-                ServerMessage::Part { .. } => {
-                    parse_message("info", format!("{:?}", message));
-                },
-                ServerMessage::Ping { .. } => {
-                    parse_message("trace", format!("{:?}", message));
-                },
-                ServerMessage::Pong { .. } => {
-                    parse_message("trace", format!("{:?}", message));
-                },
-                ServerMessage::Privmsg { .. } => {
-                    let m = PrivmsgMessage::try_from(Into::<IRCMessage>::into(message.clone()))
-                        .unwrap();
-                    commands::parse_command(message, client_clone.clone()).await;
-                    println!(
-                        "[twitch / {}] {}: {}",
-                        m.channel_login, m.sender.login, m.message_text
-                    )
-                },
-                ServerMessage::Reconnect { .. } => {
-                    parse_message("trace", format!("{:?}", message));
-                },
-                ServerMessage::RoomState { .. } => {
-                    parse_message("trace", format!("{:?}", message));
-                },
-                ServerMessage::UserNotice { .. } => {
-                    parse_message("trace", format!("{:?}", message));
-                },
-                ServerMessage::UserState { .. } => {
-                    parse_message("trace", format!("{:?}", message));
-                },
-                ServerMessage::Whisper { .. } => {
-                    // Should this be left at debug or should it be trace because of reporting safety?
-                    // We don't want users to accidentaly leak their whispers.
-                    parse_message("debug", format!("{:?}", message));
-                },
-                _ => eprintln!("received unexpected message variant {:?}", message),
+    {
+        let client_clone = client.clone();
+        let join_handle = tokio::spawn(async move {
+            while let Some(message) = incoming_messages.recv().await {
+                match message {
+                    //Match each of the non-exhaustive cases explictly so we can error on unknown ones
+                    ServerMessage::ClearChat { .. } => {
+                        parse_message("trace", format!("{:?}", message));
+                    },
+                    ServerMessage::ClearMsg { .. } => {
+                        parse_message("trace", format!("{:?}", message));
+                    },
+                    ServerMessage::Generic { .. } => {
+                        parse_message("trace", format!("{:?}", message));
+                    },
+                    ServerMessage::GlobalUserState { .. } => {
+                        parse_message("trace", format!("{:?}", message));
+                    },
+                    ServerMessage::Join { .. } => {
+                        let m = JoinMessage::try_from(Into::<IRCMessage>::into(message.clone()))
+                            .unwrap();
+                        println!("[twitch / #{}] {} joined", m.channel_login, m.user_login)
+                    },
+                    ServerMessage::Notice { .. } => {
+                        parse_message("trace", format!("{:?}", message));
+                    },
+                    ServerMessage::Part { .. } => {
+                        parse_message("info", format!("{:?}", message));
+                    },
+                    ServerMessage::Ping { .. } => {
+                        parse_message("trace", format!("{:?}", message));
+                    },
+                    ServerMessage::Pong { .. } => {
+                        parse_message("trace", format!("{:?}", message));
+                    },
+                    ServerMessage::Privmsg { .. } => {
+                        let m = PrivmsgMessage::try_from(Into::<IRCMessage>::into(message.clone()))
+                            .unwrap();
+                        commands::parse_command(message, client_clone.clone()).await;
+                        println!(
+                            "[twitch / {}] {}: {}",
+                            m.channel_login, m.sender.login, m.message_text
+                        )
+                    },
+                    ServerMessage::Reconnect { .. } => {
+                        parse_message("trace", format!("{:?}", message));
+                    },
+                    ServerMessage::RoomState { .. } => {
+                        parse_message("trace", format!("{:?}", message));
+                    },
+                    ServerMessage::UserNotice { .. } => {
+                        parse_message("trace", format!("{:?}", message));
+                    },
+                    ServerMessage::UserState { .. } => {
+                        parse_message("trace", format!("{:?}", message));
+                    },
+                    ServerMessage::Whisper { .. } => {
+                        // Should this be left at debug or should it be trace because of reporting safety?
+                        // We don't want users to accidentaly leak their whispers.
+                        parse_message("debug", format!("{:?}", message));
+                    },
+                    _ => eprintln!("received unexpected message variant {:?}", message),
+                }
             }
+        });
+        // let join_handles_eventsub = vec![];
+        for channel in &cfg.twitch_channels {
+            client.join(channel.to_owned().to_lowercase()).unwrap();
+            // join_handle_eventsub.append(
+            //     tokio::spawn(async move {
+            //     })
+            // );
         }
-    });
-    #[cfg(not(test))]
-    for channel in &cfg.twitch_channels {
-        client.join(channel.to_owned().to_lowercase()).unwrap();
+        join_handle.await.unwrap();
+        // for handle in join_handles_eventsub {
+        //     handle.await.unwrap();
+        // }
     }
-    #[cfg(not(test))]
-    join_handle.await.unwrap();
     Ok(Handler(config))
 }
 
