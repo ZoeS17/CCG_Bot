@@ -1,0 +1,13 @@
+error: custom attribute panicked
+ --> src/tests/nonstable_fail_non_str_feature.rs:3:1
+  |
+3 | #[nonstable(feature = 1)]
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = help: message: explicit panic
+
+error[E0425]: cannot find value `NONSTABLE_STATIC_WITH_NON_STR_FEATURE` in this scope
+ --> src/tests/nonstable_fail_non_str_feature.rs:7:13
+  |
+7 |     let _ = NONSTABLE_STATIC_WITH_NON_STR_FEATURE;
+  |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ not found in this scope

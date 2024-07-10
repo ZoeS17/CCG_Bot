@@ -1,2 +1,12 @@
 [default]
 port = 3000
+
+[default.tls]
+key = "./ccg_bot.key"
+certs = "./ccg_bot.crt"
+
+[default.shutdown]
+ctrlc = true
+signals = ["term"]
+grace = 2
+mercy = 3

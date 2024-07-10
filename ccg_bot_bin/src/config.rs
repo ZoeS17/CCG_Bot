@@ -5,13 +5,10 @@ use std::io::Error as IoError;
 
 #[derive(Debug, Deserialize, Serialize)]
 struct ConfigToml {
-    #[cfg(any(feature = "discord", feature = "full"))]
     discord: Option<ConfigTomlDiscord>,
-    #[cfg(any(feature = "twitch", feature = "full"))]
     twitch: Option<ConfigTomlTwitch>,
 }
 
-#[cfg(any(feature = "twitch", feature = "full"))]
 #[derive(Clone, Debug, Deserialize, Serialize)]
 struct ConfigTomlTwitch {
     channels: Option<Vec<String>>,
@@ -21,7 +18,6 @@ struct ConfigTomlTwitch {
     redirect_url: Option<String>,
 }
 
-#[cfg(any(feature = "discord", feature = "full"))]
 #[derive(Clone, Debug, Deserialize, Serialize)]
 struct ConfigTomlDiscord {
     guildid: Option<String>,
@@ -30,39 +26,27 @@ struct ConfigTomlDiscord {
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Config {
-    #[cfg(any(feature = "discord", feature = "full"))]
     pub discord_guildid: String,
-    #[cfg(any(feature = "discord", feature = "full"))]
     pub discord_token: String,
-    #[cfg(any(feature = "twitch", feature = "full"))]
     pub twitch_channels: Vec<String>,
-    #[cfg(any(feature = "twitch", feature = "full"))]
     pub twitch_client_id: String,
-    #[cfg(any(feature = "twitch", feature = "full"))]
     pub twitch_client_secret: String,
-    #[cfg(any(feature = "twitch", feature = "full"))]
     pub twitch_bot_name: String,
-    #[cfg(any(feature = "twitch", feature = "full"))]
     pub twitch_redirect_url: String,
+    pub bot_admins: Vec<String>,
 }
 
 impl Default for Config {
     fn default() -> Self {
         Self {
-            #[cfg(any(feature = "discord", feature = "full"))]
             discord_guildid: "0".to_string(),
-            #[cfg(any(feature = "discord", feature = "full"))]
             discord_token: Default::default(),
-            #[cfg(any(feature = "twitch", feature = "full"))]
             twitch_channels: Default::default(),
-            #[cfg(any(feature = "twitch", feature = "full"))]
             twitch_client_id: Default::default(),
-            #[cfg(any(feature = "twitch", feature = "full"))]
             twitch_client_secret: Default::default(),
-            #[cfg(any(feature = "twitch", feature = "full"))]
             twitch_bot_name: Default::default(),
-            #[cfg(any(feature = "twitch", feature = "full"))]
             twitch_redirect_url: Default::default(),
+            bot_admins: Default::default(),
         }
     }
 }
@@ -85,22 +69,14 @@ impl Config {
             }
         }
         let config_toml_result: Result<ConfigToml, toml::de::Error> = toml::from_str(&content);
-        // All this because it isn't read otherwise... The heck Rust
-        #[cfg(not(any(feature = "discord", feature = "full", feature = "twitch")))]
-        let _: ConfigToml = config_toml_result.unwrap_or_else(|_| ConfigToml {});
-        #[cfg(any(feature = "twitch", feature = "discord", feature = "full"))]
         let config_toml: ConfigToml = config_toml_result.unwrap_or_else(|_| {
             eprintln!("Failed to create ConfigToml object out of config file.");
-            ConfigToml {
-                #[cfg(any(feature = "discord", feature = "full"))]
-                discord: None,
-                #[cfg(any(feature = "twitch", feature = "full"))]
-                twitch: None,
-            }
+            ConfigToml { discord: None, twitch: None }
         });
-        #[cfg(any(feature = "discord", feature = "full"))]
         let discord_guildid: String = match config_toml.discord.clone() {
             Some(dgid) => {
+                #[cfg(test)]
+                let _ = dgid;
                 #[cfg(test)]
                 let di = env::var("DISCORD_GUILD_ID").unwrap_or_else(|_| "0".to_string());
                 #[cfg(not(test))]
@@ -115,11 +91,12 @@ impl Config {
                 "0".to_string()
             },
         };
-        #[cfg(any(feature = "discord", feature = "full"))]
         let discord_token: String = match config_toml.discord {
             Some(dt) => {
                 #[cfg(test)]
                 let token = env::var("DISCORD_TOKEN").unwrap_or_else(|_| "discord".to_string());
+                #[cfg(test)]
+                let _ = dt;
                 #[cfg(not(test))]
                 let token = dt.token.unwrap_or_else(|| {
                     eprintln!("Missing field `token` in table [discord]");
@@ -132,7 +109,6 @@ impl Config {
                 "discord".to_string()
             },
         };
-        #[cfg(any(feature = "twitch", feature = "full"))]
         let twitch_bot_name: String = match config_toml.twitch.clone() {
             Some(tbn) => tbn.bot_name.unwrap_or_else(|| {
                 eprintln!("Missing field `bot_name` in table [twitch]");
@@ -143,7 +119,6 @@ impl Config {
                 "twitch".to_string()
             },
         };
-        #[cfg(any(feature = "twitch", feature = "full"))]
         let twitch_channels: Vec<String> = match config_toml.twitch.clone() {
             Some(tc) => tc.channels.unwrap_or_else(|| {
                 eprintln!("Missing field `channels` in table [twitch]");
@@ -154,7 +129,6 @@ impl Config {
                 vec!["twitch".to_owned()]
             },
         };
-        #[cfg(any(feature = "twitch", feature = "full"))]
         let twitch_client_id: String = match config_toml.twitch.clone() {
             Some(tci) => tci.client_id.unwrap_or_else(|| {
                 eprintln!("Missing field `client_id` in table [twitch]");
@@ -165,7 +139,6 @@ impl Config {
                 "twitch".to_string()
             },
         };
-        #[cfg(any(feature = "twitch", feature = "full"))]
         let twitch_client_secret: String = match config_toml.twitch.clone() {
             Some(tcs) => tcs.client_secret.unwrap_or_else(|| {
                 eprintln!("Missing field `client_secret` in table [twitch]");
@@ -176,7 +149,6 @@ impl Config {
                 "twitch".to_string()
             },
         };
-        #[cfg(any(feature = "twitch", feature = "full"))]
         let twitch_redirect_url: String = match config_toml.twitch {
             Some(rdu) => rdu.redirect_url.unwrap_or_else(|| {
                 eprintln!("Missing field `redirect_url` in table [twitch]");
@@ -187,21 +159,21 @@ impl Config {
                 "twitch".to_string()
             },
         };
+        let bot_admins = fs::read_to_string("./admins")
+            .unwrap_or_default()
+            .trim()
+            .split('\n')
+            .map(|i| i.to_string())
+            .collect();
         Config {
-            #[cfg(any(feature = "discord", feature = "full"))]
             discord_guildid,
-            #[cfg(any(feature = "discord", feature = "full"))]
             discord_token,
-            #[cfg(any(feature = "twitch", feature = "full"))]
             twitch_channels,
-            #[cfg(any(feature = "twitch", feature = "full"))]
             twitch_client_id,
-            #[cfg(any(feature = "twitch", feature = "full"))]
             twitch_client_secret,
-            #[cfg(any(feature = "twitch", feature = "full"))]
             twitch_bot_name,
-            #[cfg(any(feature = "twitch", feature = "full"))]
             twitch_redirect_url,
+            bot_admins,
         }
     }
 }
@@ -209,10 +181,8 @@ impl Config {
 #[cfg(test)]
 mod test {
     use super::*;
-    #[cfg(any(feature = "discord", feature = "full", feature = "twitch"))]
-    use crate::utils::json::prelude::{from_str, to_string};
+    use crate::utils::json::{from_str, to_string};
 
-    #[cfg(any(feature = "discord", feature = "full"))]
     #[test]
     fn derives_config_toml_discord() {
         let all_some = ConfigTomlDiscord {
@@ -232,7 +202,6 @@ mod test {
         let _ = format!("{:?}", all_some); // derive(Debug)
     }
 
-    #[cfg(any(feature = "twitch", feature = "full"))]
     #[test]
     fn derives_config_toml_twitch() {
         let all_some = ConfigTomlTwitch {
@@ -339,16 +308,13 @@ mod test {
         let _ = format!("{:?}", all_some); // derive(Debug)
     }
 
-    #[cfg(any(feature = "full", all(feature = "twitch", feature = "discord")))]
     #[test]
     fn derives_config_toml() {
         let all_some = ConfigToml {
-            #[cfg(any(feature = "discord", feature = "full"))]
             discord: Some(ConfigTomlDiscord {
                 guildid: Some("".to_string()),
                 token: Some("".to_string()),
             }),
-            #[cfg(any(feature = "twitch", feature = "full"))]
             twitch: Some(ConfigTomlTwitch {
                 channels: Some(vec!["Twitch".to_string(), "TwitchRivals".to_string()]),
                 client_id: Some("".to_string()),
@@ -358,18 +324,14 @@ mod test {
             }),
         };
         let _discord_some = ConfigToml {
-            #[cfg(any(feature = "discord", feature = "full"))]
             discord: Some(ConfigTomlDiscord {
                 guildid: Some("".to_string()),
                 token: Some("".to_string()),
             }),
-            #[cfg(any(feature = "twitch", feature = "full"))]
             twitch: None,
         };
         let _twitch_some = ConfigToml {
-            #[cfg(any(feature = "discord", feature = "full"))]
             discord: None,
-            #[cfg(any(feature = "twitch", feature = "full"))]
             twitch: Some(ConfigTomlTwitch {
                 channels: Some(vec!["Twitch".to_string(), "TwitchRivals".to_string()]),
                 client_id: Some("".to_string()),

@@ -18,7 +18,7 @@ use serenity::all::{
 };
 use serenity::model::Timestamp;
 
-///Reimplimentation of Serenity's [CommandType] as it was non_exhaustive
+///Reimplementation of Serenity's [CommandType] as it was non_exhaustive
 #[derive(Copy, Clone, Debug, Hash, Eq, PartialEq, PartialOrd, Ord)]
 #[repr(u8)]
 pub enum LocalCommandType {
@@ -42,7 +42,7 @@ impl From<CommandType> for LocalCommandType {
     }
 }
 
-///Reimplimentation of Serenity's [CommandDataOptionValue] as it was non_exhaustive
+///Reimplementation of Serenity's [CommandDataOptionValue] as it was non_exhaustive
 #[derive(Clone, Debug, Deserialize)]
 pub enum CommandInteractionResolved {
     String(String),
@@ -71,7 +71,7 @@ impl From<CommandDataOptionValue> for CommandInteractionResolved {
     }
 }
 
-///Reimplimentation of Serenity's [CommandDataOption] as it was non_exhaustive
+///Reimplementation of Serenity's [CommandDataOption] as it was non_exhaustive
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct CommandInteraction {
     /// Id of the interaction.
@@ -128,6 +128,7 @@ impl std::fmt::Display for CommandInteraction {
     }
 }
 
+#[allow(unused)]
 pub(crate) fn default_cdov() -> CommandDataOptionValue {
     CommandDataOptionValue::Unknown(!0u8)
 }
@@ -153,7 +154,7 @@ impl From<Interaction> for CommandInteraction {
     }
 }
 
-///Reimplimentation of Serenity's [CommandData] as it was non_exhaustive
+///Reimplementation of Serenity's [CommandData] as it was non_exhaustive
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub(crate) struct LocalCommandData {
     /// The Id of the invoked command.
@@ -216,7 +217,7 @@ impl Serialize for CommandInteractionResolved {
         S: serde::Serializer,
     {
         match self {
-            CommandInteractionResolved::String(s) => serializer.serialize_str(&s),
+            CommandInteractionResolved::String(s) => serializer.serialize_str(s),
             CommandInteractionResolved::Integer(i) => serializer.serialize_i64(*i),
             CommandInteractionResolved::Boolean(b) => serializer.serialize_bool(*b),
             // Since serenity uses a NonZeroU64 instead of a standard u64
@@ -232,6 +233,7 @@ impl Serialize for CommandInteractionResolved {
     }
 }
 
+#[allow(unused)]
 pub(crate) fn serialize_cdov<S>(
     cdov: &CommandDataOptionValue,
     serializer: S,
@@ -300,9 +302,11 @@ pub(crate) mod snowflake {
     use std::convert::TryFrom;
     use std::fmt;
     use std::num::NonZeroU64;
+    #[allow(unused)]
     pub fn deserialize<'de, D: Deserializer<'de>>(deserializer: D) -> Result<NonZeroU64, D::Error> {
         deserializer.deserialize_any(SnowflakeVisitor)
     }
+    #[allow(unused)]
     #[allow(clippy::trivially_copy_pass_by_ref)]
     pub fn serialize<S: Serializer>(id: &NonZeroU64, serializer: S) -> Result<S::Ok, S::Error> {
         serializer.collect_str(&id.get())
@@ -330,17 +334,17 @@ pub fn is_false(v: &bool) -> bool {
     !v
 }
 //For the next update to Attachment
-use std::any::Any;
-use tokio::time::Instant as TokioInstant;
 
-// pub fn is_none<T: Any>(v: &Option<T>) -> bool {
-//     match v {
-//         Some(_) => false,
-//         None => true,
-//     }
-// }
+/*
+pub fn is_none<T: Any>(v: &Option<T>) -> bool {
+    match v {
+        Some(_) => false,
+        None => true,
+    }
+}
+*/
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
 #[cfg_attr(test, derive(PartialEq, Eq))]
 pub struct Attachment {
     pub id: serenity::model::id::AttachmentId,
@@ -372,7 +376,7 @@ pub struct Attachment {
     //#[serde(skip_serializing_if = "is_none")]
     //pub hm: Option<String>,
 }
-
+/*
 impl Default for Attachment {
     fn default() -> Attachment {
         Attachment {
@@ -392,13 +396,14 @@ impl Default for Attachment {
     }
 }
 
-//use lazy_static::lazy_static;
-////Until this exists hard-code these
-//lazy_static! {
-//    static ref DEFAULT_IS: TokioInstant = TokioInstant::now();
-//    static ref DEFAULT_EX: TokioInstant = *DEFAULT_IS - std::time::Duration::new(86400_u64, 0_u32);
-//    static ref DEFAULT_HM: String = String::from("bogus");
-//}
+use lazy_static::lazy_static;
+//Until this exists hard-code these
+lazy_static! {
+   static ref DEFAULT_IS: TokioInstant = TokioInstant::now();
+   static ref DEFAULT_EX: TokioInstant = *DEFAULT_IS - std::time::Duration::new(86400_u64, 0_u32);
+   static ref DEFAULT_HM: String = String::from("bogus");
+}
+*/
 
 impl From<SerenityAttachment> for Attachment {
     fn from(value: SerenityAttachment) -> Self {
@@ -427,49 +432,51 @@ impl From<SerenityAttachment> for Attachment {
     }
 }
 
+/*
 //Until this exists hard-code these
-//fn default_attachment_is() -> Option<TokioInstant> {
-//    Some(*DEFAULT_IS)
-//}
+fn default_attachment_is() -> Option<TokioInstant> {
+   Some(*DEFAULT_IS)
+}
 
-////Until this exists hard-code these
-//fn default_attachment_ex() -> Option<TokioInstant> {
-//    Some(*DEFAULT_EX)
-//}
+//Until this exists hard-code these
+fn default_attachment_ex() -> Option<TokioInstant> {
+   Some(*DEFAULT_EX)
+}
 
-////Until this exists hard-code these
-//fn default_attachment_hm() -> Option<String> {
-//    Some(DEFAULT_HM.to_string())
-//}
+//Until this exists hard-code these
+fn default_attachment_hm() -> Option<String> {
+   Some(DEFAULT_HM.to_string())
+}
 
-//mod approx_instant {
-//    use serde::{de::Error, Deserialize, Deserializer, Serialize, Serializer};
-//    use std::time::SystemTime;
-//    use tokio::time::Instant;
+mod approx_instant {
+   use serde::{de::Error, Deserialize, Deserializer, Serialize, Serializer};
+   use std::time::SystemTime;
+   use tokio::time::Instant;
 
-//    pub fn serialize<S>(instant: &Option<Instant>, serializer: S) -> Result<S::Ok, S::Error>
-//    where
-//        S: Serializer,
-//    {
-//        let system_now = SystemTime::now();
-//        let instant_now = Instant::now();
-//        //N.B. This is only called if `instant` has some value
-//        let approx = system_now - (instant_now - instant.unwrap());
-//        approx.serialize(serializer)
-//    }
+   pub fn serialize<S>(instant: &Option<Instant>, serializer: S) -> Result<S::Ok, S::Error>
+   where
+       S: Serializer,
+   {
+       let system_now = SystemTime::now();
+       let instant_now = Instant::now();
+       //N.B. This is only called if `instant` has some value
+       let approx = system_now - (instant_now - instant.unwrap());
+       approx.serialize(serializer)
+   }
 
-//    pub fn deserialize<'de, D>(deserializer: D) -> Result<Option<Instant>, D::Error>
-//    where
-//        D: Deserializer<'de>,
-//    {
-//        let de = SystemTime::deserialize(deserializer)?;
-//        let system_now = SystemTime::now();
-//        let instant_now = Instant::now();
-//        let duration = system_now.duration_since(de).map_err(Error::custom)?;
-//        let approx = instant_now - duration;
-//        Ok(Some(approx))
-//    }
-//}
+   pub fn deserialize<'de, D>(deserializer: D) -> Result<Option<Instant>, D::Error>
+   where
+       D: Deserializer<'de>,
+   {
+       let de = SystemTime::deserialize(deserializer)?;
+       let system_now = SystemTime::now();
+       let instant_now = Instant::now();
+       let duration = system_now.duration_since(de).map_err(Error::custom)?;
+       let approx = instant_now - duration;
+       Ok(Some(approx))
+   }
+}
+*/
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 #[cfg_attr(test, derive(PartialEq, Eq))]
@@ -672,10 +679,7 @@ impl From<SerenityPartialChannel> for PartialChannel {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::utils::{
-        prelude::prelude::{from_str, to_string},
-        TestUser,
-    };
+    use crate::utils::{from_str, to_string, TestUser};
     use serenity::all::User;
     use serenity::model::{
         channel::{Attachment as SerenityAttachment, PartialChannel as SerenityPartialChannel},
@@ -690,13 +694,14 @@ mod tests {
         use serde::de::Visitor;
         use serde::{Deserializer, Serializer};
 
+        #[allow(unused)]
         pub fn deserialize<'de, D: Deserializer<'de>>(
             deserializer: D,
         ) -> Result<CommandInteraction, D::Error> {
             deserializer.deserialize_any(CommandInteractionVisitor)
         }
 
-        #[allow(clippy::trivially_copy_pass_by_ref)]
+        #[allow(clippy::trivially_copy_pass_by_ref, unused)]
         pub fn serialize<S: Serializer>(
             id: &CommandInteraction,
             serializer: S,
@@ -704,6 +709,7 @@ mod tests {
             serializer.collect_str(&id)
         }
 
+        #[allow(unused)]
         struct CommandInteractionVisitor;
 
         impl<'de> Visitor<'de> for CommandInteractionVisitor {

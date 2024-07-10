@@ -14,6 +14,9 @@ quote = "1"
 version = "1"
 features = ["derive", "full"]
 
+[dev-dependencies]
+trybuild = "1"
+
 [lib]
 name = "ccg_bot_sys"
 path = "src/lib.rs"

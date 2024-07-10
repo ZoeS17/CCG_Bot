@@ -1,18 +1,19 @@
-#[cfg(all(any(feature = "discord", feature = "full"), test))]
+#[cfg(test)]
+#[allow(unused)]
 pub type JsonMap = serde_json::Map<String, Value>;
 pub type Value = serde_json::Value;
-pub use serde_json::json;
 pub use serde_json::Error as JsonError;
-#[cfg(all(any(feature = "discord", feature = "full"), test))]
+
+#[cfg(test)]
 use serenity::all::Embed;
-#[cfg(all(any(feature = "discord", feature = "full"), test))]
+#[cfg(test)]
 pub use serenity::builder::CreateEmbed;
-#[cfg(all(any(feature = "discord", feature = "full"), test))]
+#[cfg(test)]
 use std::collections::HashMap;
-#[cfg(all(any(feature = "discord", feature = "full"), test))]
+#[cfg(test)]
 use std::hash::{BuildHasher, Hash};
 
-#[cfg(all(any(feature = "discord", feature = "full"), test))]
+#[cfg(test)]
 use serde_path_to_error::deserialize as serde_path_to_error_deserialize;
 
 pub trait ToNumber {
@@ -25,12 +26,12 @@ impl<T: Into<serde_json::Number>> ToNumber for T {
     }
 }
 
-#[cfg(any(feature = "discord", feature = "full"))]
 pub fn from_number(n: impl ToNumber) -> Value {
     n.to_number()
 }
 
-#[cfg(all(any(feature = "discord", feature = "full"), test))]
+#[cfg(test)]
+#[allow(unused)]
 pub fn hashmap_to_json_map<H, T>(map: HashMap<T, Value, H>) -> JsonMap
 where
     H: BuildHasher,
@@ -39,13 +40,13 @@ where
     map.into_iter().map(|(k, v)| (k.to_string(), v)).collect()
 }
 
-#[cfg(all(any(feature = "discord", feature = "full"), test))]
+#[cfg(test)]
 pub fn createembed_to_embed(c_embed: CreateEmbed) -> Embed {
     let c_embed_string = serde_json::to_string(&c_embed).expect("");
     serde_json::from_str::<Embed>(&c_embed_string).expect("")
 }
 
-#[cfg(all(any(feature = "discord", feature = "full"), test))]
+#[cfg(test)]
 pub fn createembed_to_json_map(c_embed: CreateEmbed) -> JsonMap {
     let c_embed_string = serde_json::to_string(&c_embed).expect("");
     let embed = serde_json::from_str::<Embed>(&c_embed_string).expect("");
@@ -55,6 +56,7 @@ pub fn createembed_to_json_map(c_embed: CreateEmbed) -> JsonMap {
 }
 
 /// A deserialization error
+#[allow(unused)]
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum DeserError {
@@ -62,11 +64,11 @@ pub enum DeserError {
         /// Path to where the erroring key/value is
         path: String,
         /// Error for the key/value
-        error: serde_json::Error,
+        error: JsonError,
     },
 }
 
-#[cfg(all(any(feature = "discord", feature = "full"), test))]
+#[cfg(test)]
 fn parse_json<'a, T: serde::Deserialize<'a>>(s: &'a str) -> Result<T, DeserError> {
     let jd = &mut serde_json::Deserializer::from_str(s);
     serde_path_to_error_deserialize(jd)
@@ -83,10 +85,70 @@ impl<T> AnyExt for T {
     }
 }
 
-pub mod prelude {
-    pub use super::*;
-    pub use serde_json::{
-        from_reader, from_slice, from_str, from_value, to_string, to_string_pretty, to_value,
-        to_vec, to_vec_pretty,
-    };
+#[cfg(test)]
+pub use serde_json::{
+    // from_reader, from_slice, from_str, from_value, to_string, to_string_pretty, to_value,
+    // to_vec, to_vec_pretty,
+    from_str,
+    to_string,
+};
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use serde::{Deserialize, Serialize};
+
+    #[derive(Debug, Deserialize, Serialize)]
+    struct TestNewtype(i32);
+
+    #[test]
+    fn to_type_name() {
+        let new_type = 1_i32;
+        dbg!(new_type.type_name());
+    }
+
+    #[test]
+    fn from_createembed_to_embed() {
+        let create_embed = CreateEmbed::new();
+        let _ = createembed_to_embed(create_embed);
+    }
+
+    #[test]
+    fn from_createembed_to_json_map() {
+        let create_embed = CreateEmbed::new();
+        let _ = createembed_to_json_map(create_embed);
+    }
+
+    #[test]
+    fn i32_to_number() {
+        let new_type = 2_i32;
+        let _ = new_type.to_number();
+    }
+
+    #[test]
+    fn i32_from_number() {
+        let new_type = 2_i32;
+        let _ = from_number(new_type);
+    }
+
+    #[test]
+    fn newtype_deser_ialize() {
+        let new_type = TestNewtype(1_i32);
+        let new_type_str = to_string(&new_type).unwrap();
+        let _: TestNewtype = from_str(&new_type_str).unwrap();
+    }
+
+    #[test]
+    fn jsonmap_error() {
+        let jsonmap_str = String::from("not a number");
+        let _: DeserError = parse_json::<TestNewtype>(&jsonmap_str).unwrap_err();
+    }
+
+    #[test]
+    fn hashmap_to_jsonmap() {
+        let mut hashmap: HashMap<String, Value> = HashMap::new();
+        hashmap.insert("Three".to_string(), 3_i32.to_number());
+        let _ = hashmap_to_json_map(hashmap);
+    }
 }

@@ -11,9 +11,9 @@ pub(crate) struct UnstableAttribute {
 impl UnstableAttribute {
     fn crate_feature_name(&self) -> String {
         if let Some(name) = self.feature.as_deref() {
-            format!("unstable-{}", name)
+            format!("nonstable-{}", name)
         } else {
-            String::from("unstable")
+            String::from("nonstable")
         }
     }
 
@@ -27,7 +27,7 @@ impl UnstableAttribute {
                     "\n\
                     # Availability\n\
                     \n\
-                    **This API is marked as unstable** and is only available when \
+                    **This API is marked as nonstable** and is only available when \
                     the `{}` crate feature is enabled. This comes with no stability \
                     guarantees, and could be changed or removed at any time.
                     The tracking issue is: [#{}](https://github.com/ZoeS17/CCG_Bot/issues/{})
@@ -42,7 +42,7 @@ impl UnstableAttribute {
                     "\n\
                     # Availability\n\
                     \n\
-                    **This API is marked as unstable** and is only available when \
+                    **This API is marked as nonstable** and is only available when \
                     the `{}` crate feature is enabled. This comes with no stability \
                     guarantees, and could be changed or removed at any time.\
                 ",

@@ -4,14 +4,12 @@
 #[allow(unused_imports)]
 use super::*;
 
-#[cfg(any(feature = "default", feature = "discord", feature = "twitch", feature = "full"))]
-macro_rules! aw {
-    ($e:expr) => {
-        tokio_test::block_on($e)
-    };
-}
+// macro_rules! aw {
+//     ($e:expr) => {
+//         tokio_test::block_on($e)
+//     };
+// }
 
-#[cfg(any(feature = "default", feature = "twitch", feature = "full"))]
 pub mod twitch;
 
 #[test]

@@ -1,28 +1,23 @@
-#[cfg(any(feature = "discord", feature = "full"))]
 use serde::{Deserialize, Serialize};
-#[cfg(any(feature = "discord", feature = "full"))]
 use serenity::all::{
     GuildId, ImageHash, PartialMember, Permissions, PremiumType, RoleId, Timestamp, User, UserId,
     UserPublicFlags,
 };
-#[cfg(any(feature = "discord", feature = "full"))]
+
+#[cfg(test)]
+use std::any::type_name;
 use std::num::NonZeroU16;
 
-#[cfg(any(feature = "discord", feature = "full"))]
 pub mod commandinteraction;
 pub mod json;
-pub mod prelude {
-    #[cfg(any(feature = "discord", feature = "full"))]
-    pub use super::commandinteraction;
-    pub use super::json::*;
-}
+#[cfg(test)]
+pub use json::*;
 
-#[cfg(any(feature = "discord", feature = "full"))]
+#[allow(unused)]
 pub(crate) fn default_discriminator() -> Option<NonZeroU16> {
     NonZeroU16::new(1u16)
 }
 
-#[cfg(any(feature = "discord", feature = "full"))]
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct TestUser {
     pub id: UserId,
@@ -59,7 +54,6 @@ pub struct TestUser {
     pub member: Option<Box<PartialMember>>,
 }
 
-#[cfg(any(feature = "discord", feature = "full"))]
 impl Default for TestUser {
     fn default() -> Self {
         Self {
@@ -83,7 +77,6 @@ impl Default for TestUser {
     }
 }
 
-#[cfg(any(feature = "discord", feature = "full"))]
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct LocalPartialMember {
     #[serde(default)]
@@ -101,10 +94,104 @@ pub struct LocalPartialMember {
     pub permissions: Option<Permissions>,
 }
 
-#[cfg(any(feature = "discord", feature = "full"))]
+#[allow(unused)]
 fn default_pm() -> Option<Box<PartialMember>> {
     let local_partial_member = LocalPartialMember::default();
     let pm = serde_json::from_str(&serde_json::to_string(&local_partial_member).expect(""))
         .expect("Unable to deserialize LocalPartialMember into a serenity::all::PartialMember");
     Some(Box::new(pm))
+}
+
+pub mod approx_instant {
+    use serde::{de::Error, Deserialize, Deserializer, Serialize, Serializer};
+    use std::time::{Instant, SystemTime};
+
+    #[allow(unused)]
+    pub fn serialize<S>(instant: Instant, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let system_now = SystemTime::now();
+        let instant_now = Instant::now();
+        // N.B. `instant` must(and can only) be in our past.
+        let approx = system_now - (instant_now - instant);
+        approx.serialize(serializer)
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<Instant, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let de = SystemTime::deserialize(deserializer)?;
+        let system_now = SystemTime::now();
+        let instant_now = Instant::now();
+        let duration = system_now.duration_since(de).map_err(Error::custom)?;
+        let approx = instant_now - duration;
+        Ok(approx)
+    }
+}
+
+#[cfg(test)]
+#[allow(unused)]
+pub fn type_of<T>(_: T) -> &'static str {
+    type_name::<T>()
+}
+
+#[doc(hidden)]
+#[allow(unused)]
+pub(crate) fn non_op_dbg(message: String) -> bool {
+    use crate::debug;
+    debug!(message);
+    true
+}
+
+#[doc(hidden)]
+#[allow(unused)]
+pub(crate) fn non_op_trace(message: String) -> bool {
+    use crate::trace;
+    trace!(message);
+    true
+}
+
+#[cfg(test)]
+mod tests {
+
+    use super::*;
+    use crate::utils::json::{from_str, to_string};
+
+    #[test]
+    fn discriminator_default() {
+        let _ = default_discriminator();
+    }
+
+    #[test]
+    fn derive_macros_testuser() {
+        // Clone, Debug, Deserialize, Serialize, impl Default
+        let testuser = TestUser::default();
+        let testuser_cloned = testuser.clone();
+        let testuser_string = to_string(&testuser).unwrap();
+        let _: TestUser = from_str(&testuser_string).unwrap();
+        dbg!(testuser_cloned);
+    }
+
+    #[test]
+    fn derive_macros_localpartialmember() {
+        // Clone, Debug, Default, Deserialize, Serialize
+        let local_partial_member = LocalPartialMember::default();
+        dbg!(&local_partial_member);
+        let _ = local_partial_member.clone();
+        let local_partial_member_string = to_string(&local_partial_member).unwrap();
+        let _: LocalPartialMember = from_str(&local_partial_member_string).unwrap();
+    }
+
+    #[test]
+    fn pm_default() {
+        let _ = default_pm();
+    }
+
+    #[test]
+    fn non_op_dbg_type_of() {
+        let type_t = type_of(String::from("Test"));
+        assert!(non_op_dbg(type_t.to_string()));
+    }
 }
