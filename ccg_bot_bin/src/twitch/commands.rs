@@ -1,11 +1,14 @@
 use twitch_irc::login::RefreshingLoginCredentials;
-use twitch_irc::message::{Badge, ClearMsgMessage, IRCMessage, PrivmsgMessage, ServerMessage};
+use twitch_irc::message::{Badge, IRCMessage, PrivmsgMessage, ServerMessage, WhisperMessage};
 use twitch_irc::{transport::tcp::TCPTransport, TwitchIRCClient};
 
 use super::tokens::BotTokenStorage;
 
 //command each in a module
+mod link;
 mod ping;
+
+// use crate::debug;
 
 pub fn has_mod_rights(message: PrivmsgMessage) -> bool {
     if message.badges.contains(&Badge { name: "moderator".to_string(), version: "1".to_string() })
@@ -18,6 +21,12 @@ pub fn has_mod_rights(message: PrivmsgMessage) -> bool {
     false
 }
 
+pub fn has_bot_admin_rights(user_login: String, config: &crate::Config) -> bool {
+    let bot_admins = &config.bot_admins;
+
+    bot_admins.contains(&user_login)
+}
+
 pub async fn parse_command(
     message: ServerMessage,
     irc_client: TwitchIRCClient<
@@ -26,16 +35,39 @@ pub async fn parse_command(
     >,
 ) {
     match message {
-        // Use for ban, timeout
-        ServerMessage::ClearChat { .. } => {},
-        // If we extend to monitoring deleted messages
-        ServerMessage::ClearMsg { .. } => {},
         // pseudo-default case
         ServerMessage::Privmsg { .. } => {
             let m = PrivmsgMessage::try_from(Into::<IRCMessage>::into(message.clone())).unwrap();
-            if has_mod_rights(m.to_owned()) && m.message_text.starts_with("!ping") {
-                tokio::spawn(async move { ping::handle(m, irc_client).await });
+            #[allow(clippy::collapsible_if)]
+            if has_mod_rights(m.to_owned())
+                | has_bot_admin_rights(m.to_owned().sender.login, &crate::CONFIG)
+            {
+                if m.message_text.starts_with("!ping") {
+                    tokio::spawn(async move { ping::handle(m, irc_client).await });
+                }
+                /*else if m.message_text.starts_with("!") {
+                    tokio::spawn(async move { ::handle(m, irc_client).await });
+                }*/
+                /* else if m.message_text.starts_with("!") {
+                    tokio::spawn(async move { ::handle(m, irc_client).await });
+                }*/
             };
+        },
+        ServerMessage::Whisper { .. } => {
+            let m = WhisperMessage::try_from(Into::<IRCMessage>::into(message.clone())).unwrap();
+            // debug!("{:?}", &m);
+            if has_bot_admin_rights(m.to_owned().sender.login, &crate::CONFIG) {
+                #[allow(clippy::suspicious_else_formatting)]
+                if m.message_text.starts_with("!link") {
+                    tokio::spawn(async move { link::handle(m, irc_client).await });
+                }
+                /* else if m.message_text.starts_with("!") {
+                    tokio::spawn(async move { ::handle(m, irc_client).await });
+                }*/
+                else {
+                    super::parse_message("debug", format!("{:?}", message));
+                }
+            }
         },
         // All other cases are bunk
         _ => panic!(),

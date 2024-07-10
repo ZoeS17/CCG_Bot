@@ -6,17 +6,14 @@ use crate::config::Config;
 use crate::env;
 //skip reordering to allow easy reference to verbosity(from least to most)
 #[rustfmt::skip]
-use crate::{/*warn, */info, debug, trace};
-#[cfg(any(feature = "discord", feature = "full"))]
+use crate::{/*warn, */info, debug};
 use crate::utils::commandinteraction::CommandInteraction;
-// #[cfg(any(feature = "discord", feature = "full"))]
 // use crate::utils::TestUser;
 
-#[cfg(all(any(feature = "discord", feature = "full"), test))]
+#[cfg(test)]
 use serde::ser::SerializeSeq;
-
 //serenity
-#[cfg(all(any(feature = "discord", feature = "full"), test))]
+#[cfg(test)]
 use serenity::all::ShardId;
 use serenity::all::{
     Client, Context, CreateInteractionResponse, CreateInteractionResponseMessage, EventHandler,
@@ -30,18 +27,17 @@ use std::error;
 use std::fmt;
 
 //re-exports
-#[cfg(all(any(feature = "discord", feature = "full"), not(test)))]
+#[cfg(not(test))]
 mod builders;
-#[cfg(all(any(feature = "discord", feature = "full"), test))]
+#[cfg(test)]
 pub mod builders;
-#[cfg(any(feature = "discord", feature = "full"))]
 use self::builders::discordembed::DiscordEmbed;
 
 #[doc(hidden)]
 mod cache;
-#[cfg(all(any(feature = "discord", feature = "full"), not(test)))]
+#[cfg(not(test))]
 mod commands;
-#[cfg(all(any(feature = "discord", feature = "full"), test))]
+#[cfg(test)]
 pub mod commands;
 
 use lazy_static::lazy_static;
@@ -60,12 +56,13 @@ pub struct Handler(pub Config);
 impl EventHandler for Handler {
     async fn interaction_create(&self, ctx: Context, interaction: Interaction) {
         if let Interaction::Command(command) = interaction.clone() {
-            debug!("[mod#L61] {:?}", &command.data);
+            debug!("[mod#L58] {:?}", &command.data);
             let command_interaction = CommandInteraction::from(interaction);
             let content = match command.data.name.as_str() {
-                "ping" => Some(commands::ping::run(&command_interaction, &ctx).await),
                 "id" => Some(commands::id::run(&command_interaction, &ctx).await),
-                _ => Some(DiscordEmbed::not_implimented()),
+                "link" => Some(commands::link::run(&command_interaction, &ctx).await),
+                "ping" => Some(commands::ping::run(&command_interaction, &ctx).await),
+                _ => Some(DiscordEmbed::not_implemented()),
             };
 
             if let Some(ref _why) = content {
@@ -85,7 +82,14 @@ impl EventHandler for Handler {
         );
 
         let commands = gid
-            .set_commands(&ctx.http, vec![commands::ping::register(), commands::id::register()])
+            .set_commands(
+                &ctx.http,
+                vec![
+                    commands::id::register(),
+                    commands::link::register(),
+                    commands::ping::register(),
+                ],
+            )
             .await;
         let mut vec_commands = Vec::new();
         let _ = commands.unwrap().drain(..).for_each(|c| vec_commands.push(c.name));
@@ -156,9 +160,9 @@ impl From<std::env::VarError> for DiscordErr {
 }
 
 pub async fn new(config: Config) -> Result<Handler, serenity::Error> {
+    #[cfg(not(test))]
     let discord_token = config.discord_token.clone();
 
-    //shadow this because test
     #[cfg(test)]
     let discord_token = env::var("DISCORD_TOKEN").unwrap_or_else(|_| {
         "AbcDEFGhJkl0MnO1PQRsTUvx.Abcdef.AbCDefgHiJkLMNOpqrSTU0vWXy1".to_string()
@@ -178,13 +182,11 @@ pub async fn new(config: Config) -> Result<Handler, serenity::Error> {
         .expect("Error creating client");
 
     match client.start().await {
-        Ok(a) => {
+        Ok(_) => {
             #[cfg(test)]
             {
-                dbg!(&a);
                 dbg!(&config);
             }
-            let _ = a;
 
             Ok(Handler(config))
         },
@@ -192,12 +194,13 @@ pub async fn new(config: Config) -> Result<Handler, serenity::Error> {
     }
 }
 
+#[allow(unused)] // TODO: Remove after testing
 #[cfg(test)]
 fn default_config() -> std::result::Result<Handler, serenity::Error> {
     std::result::Result::Ok(Handler(Config::default()))
 }
 
-#[cfg(all(any(feature = "discord", feature = "full"), test))]
+#[cfg(test)]
 #[derive(Debug)]
 struct TestShardInfo {
     pub id: ShardId,
@@ -205,7 +208,7 @@ struct TestShardInfo {
 }
 
 //Seems sad to have to re-impl these but I couldn't get `#[serde(remote = "...")]` to work
-#[cfg(all(any(feature = "discord", feature = "full"), test))]
+#[cfg(test)]
 impl<'de> serde::Deserialize<'de> for TestShardInfo {
     fn deserialize<D: serde::Deserializer<'de>>(
         deserializer: D,
@@ -216,7 +219,7 @@ impl<'de> serde::Deserialize<'de> for TestShardInfo {
 }
 
 //Seems sad to have to re-impl these but I couldn't get `#[serde(remote = "...")]` to work
-#[cfg(all(any(feature = "discord", feature = "full"), test))]
+#[cfg(test)]
 impl serde::Serialize for TestShardInfo {
     fn serialize<S: serde::Serializer>(
         &self,
@@ -232,22 +235,30 @@ impl serde::Serialize for TestShardInfo {
 #[cfg(test)]
 pub mod tests {
     use super::*;
-    use crate::utils::TestUser;
-    use crate::{config::Config, utils::json::prelude::from_str, StdResult};
+    // use crate::utils::TestUser;
+    // use crate::{config::Config, utils::json::prelude::from_str};
+    use crate::StdResult;
     use error::Error;
     use serde::{Deserialize, Serialize};
     use serenity::all::{
-        ApplicationFlags, ApplicationId, Cache, ChannelType as SerenityChannelType,
-        CommandInteraction as SerenityCommandInteraction, ConnectionStage, CurrentUser, Http,
-        PartialCurrentApplicationInfo, PresenceData, Ready, Shard, ShardId, ShardInfo,
-        ShardManager, ShardManagerOptions, ShardMessenger, ShardRunner, ShardRunnerOptions,
+        ApplicationFlags,
+        ApplicationId,
+        /*Cache,*/ ChannelType as SerenityChannelType,
+        /*CommandInteraction as SerenityCommandInteraction,*/ ConnectionStage,
+        CurrentUser, /*Http,*/
+        PartialCurrentApplicationInfo,
+        PresenceData,
+        /*Ready,*/ Shard,
+        /*ShardId,*/ ShardInfo,
+        //ShardManager, ShardManagerOptions, ShardMessenger, ShardRunner, ShardRunnerOptions,
         UnavailableGuild,
     };
     use serenity::futures::{SinkExt, StreamExt};
     use serenity::gateway::WsClient;
-    use serenity::prelude::{Mutex, RwLock, TypeMap};
+    // use serenity::prelude::{Mutex, RwLock, TypeMap};
+    use serenity::prelude::Mutex;
     use std::{
-        env,
+        // env,
         hash::Hash,
         sync::{Arc, OnceLock},
         time::Instant,
@@ -258,9 +269,12 @@ pub mod tests {
     };
     use tokio_websockets::ServerBuilder;
 
+    #[allow(unused)] // TODO: Remove after testing via test_ws()
     static WS_ABORT_HANDLE: OnceLock<AbortHandle> = OnceLock::new();
+    #[allow(unused)] // TODO: Remove after testing via test_ws()
     static WS_SERVER: OnceLock<TcpListener> = OnceLock::new();
 
+    #[allow(unused)] // TODO: Remove after testing via this
     async fn test_ws(url: String) -> &'static AbortHandle {
         let server_result = TcpListener::bind(url.as_str()).await.map_err(|_| {});
         // dbg!(&server_result);
@@ -300,6 +314,7 @@ pub mod tests {
         pub application: PartialCurrentApplicationInfo,
     }
 
+    #[allow(unused)] // TODO: Remove after testing via test_ws()
     pub struct LocalShard {
         pub client: WsClient,
         presence: PresenceData,

@@ -6,22 +6,18 @@
 //Crate doc
 #![doc = include_str!("../../README.md")]
 
+use lazy_static::lazy_static;
 //skip reordering to allow easy reference to verbosity(from least to most)
 #[rustfmt::skip]
-#[cfg(any(feature = "discord", feature = "full", feature = "twitch", test))]
 pub use tracing::{error, warn, info, debug, trace};
+pub use tracing::info_span;
 
 //crate
 //use ccg_bot_sys;
-#[cfg(any(feature = "discord", feature = "full", feature = "twitch"))]
 use config::Config;
 
 // serde
 use serde_json::Error as JsonError;
-
-// small-array
-// #[cfg(any(feature = "discord", feature = "full"))]
-// pub use small_fixed_array::{FixedArray, FixedString};
 
 //std
 use std::env;
@@ -34,18 +30,14 @@ use std::result::Result as StdResult;
 mod tests;
 
 mod config;
-#[cfg(any(feature = "discord", feature = "full"))]
 mod discord;
 #[macro_use]
 mod internals;
 
-#[cfg(any(feature = "twitch", feature = "full"))]
 mod twitch;
 mod utils;
 
-#[cfg(any(feature = "discord", feature = "full"))]
 use discord::DiscordErr as DiscordError;
-#[cfg(any(feature = "twitch", feature = "full"))]
 use twitch::TwitchErr as TwitchError;
 
 ///This is an enum of all the error types this crate handles
@@ -59,11 +51,13 @@ pub enum Error {
     ///This is a tuple struct of [`JsonError`]
     Json(JsonError),
     ///This is a tuple struct of [`DiscordError`] and is behind the `discord` feature flag which is enabled by default
-    #[cfg(any(feature = "discord", feature = "full"))]
     Discord(DiscordError),
     ///This is a tuple struct of [`TwitchError`] and is behind the `twitch` feature flag which is disabled by default
-    #[cfg(any(feature = "twitch", feature = "full"))]
     Twitch(TwitchError),
+}
+
+lazy_static! {
+    static ref CONFIG: Config = Config::new();
 }
 
 impl From<FormatError> for Error {
@@ -71,24 +65,25 @@ impl From<FormatError> for Error {
         Error::Format(e)
     }
 }
+
 impl From<IoError> for Error {
     fn from(e: IoError) -> Self {
         Error::Io(e)
     }
 }
+
 impl From<JsonError> for Error {
     fn from(e: JsonError) -> Self {
         Error::Json(e)
     }
 }
-#[cfg(any(feature = "discord", feature = "full"))]
+
 impl From<DiscordError> for Error {
     fn from(e: DiscordError) -> Self {
         Error::Discord(e)
     }
 }
 
-#[cfg(any(feature = "twitch", feature = "full"))]
 impl From<TwitchError> for Error {
     fn from(e: TwitchError) -> Self {
         Error::Twitch(e)
@@ -101,9 +96,7 @@ impl fmt::Display for Error {
             Self::Format(inner) => fmt::Display::fmt(&inner, f),
             Self::Io(inner) => fmt::Display::fmt(&inner, f),
             Self::Json(inner) => fmt::Display::fmt(&inner, f),
-            #[cfg(any(feature = "discord", feature = "full"))]
             Self::Discord(inner) => fmt::Display::fmt(&inner, f),
-            #[cfg(any(feature = "twitch", feature = "full"))]
             Self::Twitch(inner) => fmt::Display::fmt(&inner, f),
         }
     }
@@ -115,24 +108,18 @@ impl StdError for Error {
             Self::Format(inner) => Some(inner),
             Self::Io(inner) => Some(inner),
             Self::Json(inner) => Some(inner),
-            #[cfg(any(feature = "discord", feature = "full"))]
             Self::Discord(inner) => Some(inner),
-            #[cfg(any(feature = "twitch", feature = "full"))]
             Self::Twitch(inner) => Some(inner),
         }
     }
 }
 
-#[cfg(not(any(feature = "discord", feature = "twitch", feature = "full", test)))]
-fn main() {
-    std::compile_error!("Please rebuild with --feature [discord | twitch | full ] ");
-}
-
-#[tokio::main]
-async fn main() -> StdResult<(), Box<dyn StdError + Send + Sync>> {
+#[rocket::main]
+async fn main() -> StdResult<(), Box<dyn StdError + Send>> {
     let mut log_var = String::from("");
     for (k, v) in env::vars() {
-        if k == "RUST_LOG" {
+        if k.starts_with("RUST_LOG") {
+            println!("'{k}'='{v}'");
             log_var = v.to_string();
         }
     }
@@ -141,34 +128,24 @@ async fn main() -> StdResult<(), Box<dyn StdError + Send + Sync>> {
     // In this case, a good default is setting the environment variable
     // `RUST_LOG` to `debug`, but for production, use the variable defined below.
     if !log_var.is_empty() {
+        eprintln!("RUST_LOG environment var not set");
         env::set_var(
             "RUST_LOG",
             format!(
-                "warn,ccg_bot={},meio=error,twitch_irc={},reqwest={}",
-                &log_var, &log_var, log_var
+                // "warn,ccg_bot={},meio=error,twitch_irc={},reqwest={}",
+                // &log_var, &log_var, log_var
+                "warn,ccg_bot={},meio=error",
+                log_var
             ),
         );
     } else {
         env::set_var("RUST_LOG", "warn,CCG_Bot=warn,meio=error,twitch_irc=warn");
     }
     tracing_subscriber::fmt::init();
-    #[cfg(any(feature = "discord", feature = "twitch", feature = "full"))]
-    let config: Config = Config::new();
-    #[cfg(any(feature = "full", all(feature = "twitch", feature = "discord")))]
-    let discord_handle = discord::new(config.clone());
-    #[cfg(any(feature = "full", all(feature = "twitch", feature = "discord")))]
-    let twitch_handle = twitch::new(config.clone());
-    #[cfg(all(feature = "discord", not(any(feature = "full", feature = "twitch"))))]
-    match discord::new(config.clone()).await {
-        Ok(_) => (),
-        Err(e) => eprintln!("{:?}", e),
-    };
-    #[cfg(all(feature = "twitch", not(any(feature = "full", feature = "discord"))))]
-    match twitch::new(config.clone()).await {
-        Ok(_) => (),
-        Err(e) => eprintln!("{:?}", e),
-    };
-    #[cfg(any(feature = "full", all(feature = "twitch", feature = "discord")))]
+    // console_subscriber::init();
+    lazy_static::initialize(&CONFIG);
+    let discord_handle = discord::new(CONFIG.clone());
+    let twitch_handle = twitch::new(CONFIG.clone());
     let (_first, _second) = tokio::join!(discord_handle, twitch_handle);
     Ok(())
 }
@@ -176,7 +153,7 @@ async fn main() -> StdResult<(), Box<dyn StdError + Send + Sync>> {
 #[cfg(test)]
 mod main_tests {
     use super::*;
-    use crate::utils::json::prelude::from_str;
+    use crate::utils::json::from_str;
     use serde::Deserialize;
 
     #[derive(Debug, Deserialize)]
@@ -202,12 +179,10 @@ mod main_tests {
         let je: Result<JsonErrorStruct, JsonError> = from_str(r#"""{"foo":"", "bar": ""}"""#);
         let e2 = Error::Json(je.unwrap_err());
         let _ = format!("{:?}", e2);
-        #[cfg(any(feature = "discord", feature = "full"))]
         {
             let e3 = Error::Discord(DiscordError::VarErr(env::VarError::NotPresent));
             let _ = format!("{:?}", e3);
         }
-        #[cfg(any(feature = "twitch", feature = "full"))]
         {
             let e4 = Error::Twitch(TwitchError::VarErr(env::VarError::NotPresent));
             let _ = format!("{:?}", e4);
@@ -238,7 +213,6 @@ mod main_tests {
         let _: Error = e2.into();
     }
 
-    #[cfg(any(feature = "discord", feature = "full"))]
     #[test]
     fn impl_from_discorderror_for_error() {
         let e = DiscordError::VarErr(env::VarError::NotPresent);
@@ -247,7 +221,6 @@ mod main_tests {
         let _: Error = e2.into();
     }
 
-    #[cfg(any(feature = "twitch", feature = "full"))]
     #[test]
     fn impl_from_twitcherror_for_error() {
         let e = TwitchError::VarErr(env::VarError::NotPresent);
@@ -265,16 +238,10 @@ mod main_tests {
         let je: Result<JsonErrorStruct, JsonError> = from_str(r#"""{"foo":"", "bar": ""}"""#);
         let e2 = Error::Json(je.unwrap_err());
         let _ = format!("{}", e2);
-        #[cfg(any(feature = "discord", feature = "full"))]
-        {
-            let e3 = Error::Discord(DiscordError::VarErr(env::VarError::NotPresent));
-            let _ = format!("{}", e3);
-        }
-        #[cfg(any(feature = "twitch", feature = "full"))]
-        {
-            let e4 = Error::Twitch(TwitchError::VarErr(env::VarError::NotPresent));
-            let _ = format!("{}", e4);
-        }
+        let e3 = Error::Discord(DiscordError::VarErr(env::VarError::NotPresent));
+        let _ = format!("{}", e3);
+        let e4 = Error::Twitch(TwitchError::VarErr(env::VarError::NotPresent));
+        let _ = format!("{}", e4);
     }
 
     #[test]
@@ -284,7 +251,6 @@ mod main_tests {
         let rje: Result<JsonErrorStruct, JsonError> = from_str(r#"""{"foo":"", "bar": ""}"""#);
         let je = rje.unwrap_err();
         let _ = Error::Json(je).source();
-        #[cfg(any(feature = "discord", feature = "full"))]
         let _ = Error::Discord(DiscordError::VarErr(env::VarError::NotPresent)).source();
     }
 }

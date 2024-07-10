@@ -31,12 +31,12 @@ impl DiscordEmbed {
 
     ///Sets the color to appear on the left side of the embed.
     #[inline]
-    pub fn color<C: Into<serenity::all::Colour>>(self, color: C) -> Self {
+    pub fn color<C: Into<serenity::all::Color>>(self, color: C) -> Self {
         self._color(color.into())
     }
 
     #[doc(hidden)]
-    fn _color(self, color: serenity::all::Colour) -> Self {
+    fn _color(self, color: serenity::all::Color) -> Self {
         Self(self.0.color(color))
     }
 
@@ -46,6 +46,7 @@ impl DiscordEmbed {
         Self(self.0.field(name, value, inline))
     }
 
+    #[allow(unused)]
     #[inline]
     fn fields<N, V>(self, fields: impl IntoIterator<Item = (N, V, bool)>) -> Self
     where
@@ -57,6 +58,7 @@ impl DiscordEmbed {
         }
     }
 
+    #[allow(unused)]
     #[doc(hidden)]
     fn url_object(self, url: impl Into<String>) -> Self {
         Self(self.0.url(url.into()))
@@ -75,7 +77,44 @@ impl DiscordEmbed {
     }
 
     #[doc(hidden)]
-    pub(crate) fn not_implimented() -> CreateEmbed {
-        Self::new().title("Not Implimented").build()
+    pub(crate) fn not_implemented() -> CreateEmbed {
+        Self::new().title("Not Implemented").build()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    use super::*;
+
+    #[test]
+    fn builder() {
+        let embed = DiscordEmbed::new();
+        let author = serenity::all::CreateEmbedAuthor::new("TestAuthor");
+        let fields = vec![("key 1", "value 1", false), ("key 2", "value 2", false)];
+        let embed_with_auth = embed.author(author);
+        let colorful_embed_auth = embed_with_auth.color(serenity::all::Color::new(0x0000a0_u32));
+        let colorful_embed_auth_with_field =
+            colorful_embed_auth.field("Test field", "Test field value", false);
+        let colorful_embed_auth_replaced_fields =
+            colorful_embed_auth_with_field.clone().fields(fields);
+        let colorful_embed_auth_with_field_and_url =
+            colorful_embed_auth_replaced_fields.url_object("http:://localhost/url_object");
+        let colorful_embed_auth_with_field_url_and_thumbnail =
+            colorful_embed_auth_with_field_and_url.thumbnail("test_thumb.png");
+        let mut titled_colorful_embed_auth_with_field_url_and_thumbnail =
+            colorful_embed_auth_with_field_url_and_thumbnail.title("Test Title");
+        dbg!(&titled_colorful_embed_auth_with_field_url_and_thumbnail);
+        let _built = titled_colorful_embed_auth_with_field_url_and_thumbnail.build();
+    }
+
+    #[test]
+    fn default() {
+        let _ = DiscordEmbed::default();
+    }
+
+    #[test]
+    fn not_implemented() {
+        let _ = DiscordEmbed::not_implemented();
     }
 }

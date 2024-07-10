@@ -1,0 +1,7 @@
+error: custom attribute panicked
+ --> src/tests/nonstable_fail_item_type.rs:3:1
+  |
+3 | #[nonstable(feature = "nonstable-testing")]
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = help: message: unsupported item type

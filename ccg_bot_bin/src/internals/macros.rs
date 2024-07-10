@@ -1,4 +1,3 @@
-#[cfg(any(feature = "discord", feature = "full"))]
 macro_rules! enum_number {
     ($name:ident { $($(#[$attr:meta])? $variant:ident $(,)? )* }) => {
         impl $name {

@@ -14,7 +14,7 @@ pub async fn handle(
     client: TwitchIRCClient<TCPTransport<TLS>, RefreshingLoginCredentials<BotTokenStorage>>,
 ) -> Result<(), Error<TCPTransport<TLS>, RefreshingLoginCredentials<BotTokenStorage>>> {
     let reply_to = message;
-    let response = String::from("pong");
+    let response = "pong".to_string();
     // It's unfortunate that the call to the say_in_reply_to function on client can't be tested directly
     #[cfg(not(test))]
     {
@@ -40,7 +40,6 @@ mod tests {
 
     use super::handle;
     use super::BotTokenStorage;
-    // use crate::tests::aw;
 
     #[tokio::test]
     async fn command_handle() {

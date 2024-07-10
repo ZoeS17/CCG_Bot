@@ -6,10 +6,7 @@ use crate::discord::builders::discordembed::*;
 //skip reordering to allow easy reference to verbosity(from least to most)
 #[rustfmt::skip]
 use crate::debug;
-#[cfg(any(feature = "discord", feature = "full"))]
 use crate::utils::commandinteraction::{CommandInteraction, CommandInteractionResolved};
-// #[cfg(any(feature = "discord", feature = "full"))]
-// use crate::FixedArray;
 
 //serenity imports
 use serenity::all::CommandOptionType;
@@ -41,7 +38,7 @@ pub async fn run(options: &CommandInteraction, context: &Context) -> CreateEmbed
         panic!("unexpected type in resolved: {option:?}")
     };
     let user_result = uid.to_user(http_cache).await;
-    let user = user_result.expect("-_-;"); // uid.to_user(http_cache).await.expect("");
+    let user = user_result.expect("Unable to turn UserId into a User");
     let member = user.member.clone();
     let mut mem: PartialMember;
     if member.is_some() {
@@ -53,7 +50,8 @@ pub async fn run(options: &CommandInteraction, context: &Context) -> CreateEmbed
             "{:?}",
             mem.roles
                 .drain(..)
-                .map(|r| format!("{}", r.to_role_cached(c).unwrap()))
+                // .map(|r| format!("{}", r.to_role_cached(c).unwrap()))
+                .map(|r| format!("{}", options.guild_id.unwrap().to_guild_cached(c).unwrap().roles.get(&r).unwrap()))
                 .collect::<Vec<_>>()
         );
         roles.retain(|c| c != '[');

@@ -1,12 +1,17 @@
+#![allow(dead_code)]
+
+#[cfg(test)]
+use trybuild;
+
 use proc_macro::TokenStream;
 use syn::{parse_macro_input, Item};
 
-mod unstable;
+mod nonstable;
 
 #[proc_macro_attribute]
-pub fn unstable(args: TokenStream, item: TokenStream) -> TokenStream {
+pub fn nonstable(args: TokenStream, item: TokenStream) -> TokenStream {
     let args = parse_macro_input!(args as syn::AttributeArgs);
-    let attr = unstable::UnstableAttribute::from(args);
+    let attr = nonstable::UnstableAttribute::from(args);
 
     match parse_macro_input!(item as Item) {
         Item::Type(item_type) => attr.expand(item_type),
@@ -19,4 +24,52 @@ pub fn unstable(args: TokenStream, item: TokenStream) -> TokenStream {
         Item::Static(item_static) => attr.expand(item_static),
         _ => panic!("unsupported item type"),
     }
+}
+
+#[test]
+fn nonstable_without_feature() {
+    let t = trybuild::TestCases::new();
+    t.pass("src/tests/nonstable_without_feature.rs");
+}
+
+#[test]
+fn nonstable_with_feature() {
+    let t = trybuild::TestCases::new();
+    t.pass("src/tests/nonstable_with_feature.rs");
+}
+
+#[test]
+fn nonstable_without_issue() {
+    let t = trybuild::TestCases::new();
+    t.pass("src/tests/nonstable_without_issue.rs");
+}
+
+#[test]
+fn nonstable_failure_with_use_item_type() {
+    let t = trybuild::TestCases::new();
+    t.compile_fail("src/tests/nonstable_fail_item_type.rs");
+}
+
+#[test]
+fn nonstable_without_issue_or_feature() {
+    let t = trybuild::TestCases::new();
+    t.pass("src/tests/nonstable_without_issue_or_feature.rs");
+}
+
+#[test]
+fn nonstable_with_feature_and_reason() {
+    let t = trybuild::TestCases::new();
+    t.pass("src/tests/nonstable_with_feature_and_reason.rs");
+}
+
+#[test]
+fn nonstable_failure_with_non_str_feature() {
+    let t = trybuild::TestCases::new();
+    t.compile_fail("src/tests/nonstable_fail_non_str_feature.rs");
+}
+
+#[test]
+fn nonstable_failure_with_non_str_issue() {
+    let t = trybuild::TestCases::new();
+    t.compile_fail("src/tests/nonstable_fail_non_str_issue.rs");
 }
