@@ -20,7 +20,7 @@ color-eyre = { version = "0.6.3", features = ["capture-spantrace"] }
 console-subscriber = "0.2.0"
 eyre = "0.6.12"
 governor = "0.6"
-http = "0.2.12"
+http = "1.1.0"
 lazy_static = "1.4"
 once_cell = { version = "1.18.0", default-features = false }
 open = "5.0.0"
