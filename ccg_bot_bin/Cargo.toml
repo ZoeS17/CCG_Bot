@@ -42,7 +42,7 @@ url = "2.5.0"
 twitch_types = { version = "0.4.5", features = ["serde"] }
 
 [dependencies.diesel]
-version = "2.1.1"
+version = "2.2.3"
 default-features = false
 features = ["32-column-tables", "mysql", "without-deprecated"]
 
