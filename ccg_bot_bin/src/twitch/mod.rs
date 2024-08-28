@@ -206,14 +206,23 @@ pub async fn new(config: Config) -> eyre::Result<Handler> {
             debug_assert!(non_op_trace(format!("`{}` ?= `{}`", un, channel.to_lowercase())));
             if channel.to_lowercase() == un {
                 debug_assert!(non_op_trace(format!("skipping channel `{}`", channel.clone())));
+                let reqwest_client = <reqwest::Client>::default_client_with_name(Some(
+                    "twitch-rs/eventsub"
+                        .parse()
+                        .wrap_err_with(|| "when creating header name")
+                        .unwrap(),
+                ))
+                .wrap_err_with(|| "when creating client")?;
                 let helix_client: HelixClient<_> = twitch_api::HelixClient::with_client(
-                    <reqwest::Client>::default_client_with_name(Some(
-                        "twitch-rs/eventsub"
-                            .parse()
-                            .wrap_err_with(|| "when creating header name")
-                            .unwrap(),
-                    ))
-                    .wrap_err_with(|| "when creating client")?,
+                    // twitch_api::client::ClientDefault::default_client_with_name(Some(
+                    // <reqwest::Client>::default_client_with_name(Some(
+                    //     "twitch-rs/eventsub"
+                    //         .parse()
+                    //         .wrap_err_with(|| "when creating header name")
+                    //         .unwrap(),
+                    // ))
+                    // .wrap_err_with(|| "when creating client")?,
+                    reqwest_client,
                 );
                 let id = helix_client
                     .get_user_from_login(channel, &token)

@@ -11,9 +11,9 @@ use twitch_api::{
         event::websocket::{EventsubWebsocketData, ReconnectPayload, SessionData, WelcomePayload},
         Event,
     },
+    twitch_oauth2::TwitchToken,
     types, HelixClient,
 };
-use twitch_oauth2::TwitchToken;
 use twitch_types::UserName;
 
 use crate::{

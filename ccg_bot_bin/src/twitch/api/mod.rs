@@ -12,8 +12,8 @@ use std::{
 use tokio::task::{JoinError, JoinHandle};
 #[cfg(test)]
 use tokio::time;
+use twitch_api::twitch_oauth2::{tokens::UserTokenBuilder, ClientId, ClientSecret, Scope};
 use twitch_irc::login::{GetAccessTokenResponse, UserAccessToken};
-use twitch_oauth2::{tokens::UserTokenBuilder, ClientId, ClientSecret, Scope};
 
 pub const SCOPE: [Scope; 27] = [
     Scope::ChannelModerate,
