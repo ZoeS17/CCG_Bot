@@ -13,14 +13,21 @@ use twitch_irc::{
     login::{GetAccessTokenResponse, RefreshingLoginCredentials, TokenStorage, UserAccessToken},
     ClientConfig,
 };
-//twitch_oauth2
-use twitch_oauth2::{
+
+//twitch_api
+use twitch_api::twitch_oauth2::{
     client::Client,
+    // scopes::Scope as ApiScope,
     scopes::Scope,
     tokens::{errors::RefreshTokenError, AppAccessToken, BearerTokenType},
     types::{AccessToken, ClientId, ClientSecret, RefreshToken},
+    // types::{ClientId, ClientSecret},
+    // TwitchToken as TwitchApiToken,
     TwitchToken,
 };
+
+//twitch_oauth2
+// use twitch_oauth2::{Scope, TwitchToken};
 
 //twitch_types
 use twitch_types::{UserId, UserIdRef, UserName, UserNameRef};
@@ -45,8 +52,8 @@ pub(crate) struct BotTokenStorage {
 #[derive(Clone, Deserialize)]
 #[cfg_attr(not(sensitive), derive(Debug))]
 pub(crate) struct AppToken {
-    pub access_token: AccessToken,
-    pub refresh_token: Option<RefreshToken>,
+    pub access_token: twitch_oauth2::AccessToken,
+    pub refresh_token: Option<twitch_oauth2::RefreshToken>,
     expires_in: Duration,
     #[serde(with = "approx_instant")]
     struct_created: Instant,
@@ -65,8 +72,8 @@ impl AppToken {
         let config = crate::CONFIG.clone();
 
         // Grab the client id, convert to a `ClientId` with the `new` method.
-        let client_id = ClientId::new(config.twitch_client_id);
-        let client_secret = ClientSecret::new(config.twitch_client_secret);
+        let client_id = twitch_oauth2::ClientId::new(config.twitch_client_id);
+        let client_secret = twitch_oauth2::ClientSecret::new(config.twitch_client_secret);
 
         // Get the app access token
         let token = twitch_oauth2::AppAccessToken::get_app_access_token(
@@ -169,6 +176,26 @@ impl From<AppAccessToken> for AppToken {
         }
     }
 }
+
+// impl From<twitch_oauth2::tokens::AppAccessToken> for AppToken {
+//     fn from(value: twitch_oauth2::tokens::AppAccessToken) -> Self {
+//         let expires_in = value.expires_in();
+//         let struct_created = Instant::now();
+//         let config = crate::CONFIG.clone();
+//         let client_id = ClientId::new(config.twitch_client_id.clone());
+//         let client_secret = ClientSecret::new(config.twitch_client_secret.clone());
+//         let scopes = super::api::SCOPE.to_vec();
+//         Self {
+//             access_token: value.access_token,
+//             refresh_token: value.refresh_token,
+//             expires_in,
+//             struct_created,
+//             client_id,
+//             client_secret,
+//             scopes,
+//         }
+//     }
+// }
 
 #[derive(Clone, Deserialize)]
 #[cfg_attr(not(sensitive), derive(Debug))]
