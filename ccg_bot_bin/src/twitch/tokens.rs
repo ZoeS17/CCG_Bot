@@ -260,7 +260,7 @@ impl Token {
     }
 "#
         .to_vec();
-            let http_response = http::Response::builder().body(data).unwrap();
+            let http_response = rocket::http::hyper::Response::builder().body(data).unwrap();
             let uri = req.get_uri().unwrap();
             twitch_api::helix::users::GetUsersRequest::parse_response(
                 Some(req),
