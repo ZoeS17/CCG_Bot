@@ -74,9 +74,7 @@ jobs:
       #     echo "MYSQLCLIENT_LIB_DIR=C:\tools\mysql\current\lib" >> $GITHUB_ENV
       - name: Install MySQL (Macos)
         if: runner.os == 'macOS'
-        shell: cmd
-        run: |
-          brew install mysql
+        run: brew install mysql
       - name: Install stable
         uses: dtolnay/rust-toolchain@stable
       - name: cargo generate-lockfile
