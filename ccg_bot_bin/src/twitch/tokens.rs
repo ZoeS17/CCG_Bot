@@ -610,18 +610,19 @@ impl TokenStorage for BotTokenStorage {
 }
 
 #[cfg(test)]
-mod tests{
+mod tests {
     use super::*;
 
     #[test]
     fn app_token() {
         let config = crate::CONFIG.clone();
         let access_token = twitch_oauth2::AccessToken::new(String::from("TestAccessToken"));
-        let refresh_token = Some(twitch_oauth2::RefreshToken::new(String::from("TestRefreshToken")));
+        let refresh_token =
+            Some(twitch_oauth2::RefreshToken::new(String::from("TestRefreshToken")));
         let app_token = AppToken {
             access_token,
             refresh_token,
-            expires_in: Duration::new(30,0),
+            expires_in: Duration::new(30, 0),
             struct_created: Instant::now(),
             client_id: ClientId::new(config.twitch_client_id),
             client_secret: ClientSecret::new(config.twitch_client_secret),
