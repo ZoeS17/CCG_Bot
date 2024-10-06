@@ -61,7 +61,7 @@ jobs:
     name: ubuntu / stable / features
     env:
       DB_DATABASE: ccgbot_rust
-      DB_USER:ccgbotrust
+      DB_USER: ccgbotrust
     steps:
       - uses: actions/checkout@v4
         with:
