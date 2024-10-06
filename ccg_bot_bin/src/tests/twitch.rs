@@ -33,6 +33,7 @@ async fn it_works() {
     use super::super::config::Config;
     use super::super::twitch::new;
     let twitch = new(Config {
+        database_url: "".to_string(),
         discord_guildid: "".to_string(),
         discord_token: "".to_string(),
         twitch_bot_name: "".to_string(),

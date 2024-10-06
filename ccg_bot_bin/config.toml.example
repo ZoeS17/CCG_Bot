@@ -1,4 +1,5 @@
-database_url = "mysql://root@127.0.0.1:3306/ccgbot_rust"
+[database]
+database_url = "mysql://ccgbotrust@127.0.0.1:3306/ccgbot_rust"
 
 [discord]
 guildid = "12345678910111213"

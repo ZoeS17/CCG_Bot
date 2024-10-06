@@ -59,6 +59,9 @@ jobs:
   hack:
     runs-on: ubuntu-latest
     name: ubuntu / stable / features
+    env:
+      DB_DATABASE: ccgbot_rust
+      DB_USER:ccgbotrust
     steps:
       - uses: actions/checkout@v4
         with:
@@ -67,6 +70,16 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
       - name: cargo install cargo-hack
         uses: taiki-e/install-action@cargo-hack
+      - name: Setup MySql
+        run: |
+          sudo /etc/init.d/mysql start
+          mysql -e "CREATE DATABASE IF NOT EXISTS $DB_DATABASE;" -u$DB_USER
+          mysql -e "CREATE TABLE `twitchuser` (`tid` int unsigned NOT NULL, `username` varchar(25) NOT NULL, PRIMARY KEY (`tid`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci" -u$DB_USER
+          mysql -e "CREATE TABLE `discorduser` (`did` bigint unsigned NOT NULL,`username` varchar(25) NOT NULL,PRIMARY KEY (`did`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci" -u$DB_USER
+          mysql -e "CREATE TABLE `users` (`id` int unsigned NOT NULL, `uid` int unsigned NOT NULL, `discord_id` bigint unsigned NOT NULL, `twitch_id` int unsigned NOT NULL, PRIMARY KEY (`id`), KEY `discord_id` (`discord_id`), KEY `twitch_id` (`twitch_id`), CONSTRAINT `users_ibfk_1` FOREIGN KEY (`discord_id`) REFERENCES `discorduser` (`did`) ON DELETE CASCADE ON UPDATE CASCADE, CONSTRAINT `users_ibfk_2` FOREIGN KEY (`twitch_id`) REFERENCES `twitchuser` (`tid`) ON DELETE CASCADE ON UPDATE CASCADE) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci" -u$DB_USER
+          mysql -e 'INSERT INTO `twitchuser` VALUES (12345678, "testuser");' -u$DB_USER
+          mysql -e 'INSERT INTO `discorduser` VALUES (123456789012345, "testuser");'' -u$DB_USER
+          mysql -e "INSERT INTO `users` VALUES (1, 1, 123456789012345, 12345678)" -u$DB_USER
       - name: cargo hack
         run: cargo hack --feature-powerset check --tests --workspace
   msrv:

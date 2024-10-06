@@ -2,14 +2,17 @@
 #[rustfmt::skip]
 use crate::{error, warn, info/*, info_span */,debug, trace};
 
+use chrono::{DateTime, Utc};
 use eyre::Context;
+use serde::Deserialize;
+// use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::io::AsyncWriteExt;
 use tokio_tungstenite::tungstenite;
 use twitch_api::{
     eventsub::{
         self,
         event::websocket::{EventsubWebsocketData, ReconnectPayload, SessionData, WelcomePayload},
-        Event,
+        Event, EventSubSubscription,
     },
     twitch_oauth2::TwitchToken,
     types, HelixClient,
@@ -20,6 +23,28 @@ use crate::{
     twitch::tokens::{AppToken, Token},
     utils::non_op_dbg,
 };
+
+#[derive(Clone, Debug, Deserialize)]
+struct InnerEvent {
+    pub user_id: String,
+    pub user_login: String,
+    pub broadcaster_user_id: String,
+    pub broadcaster_user_login: String,
+    pub broadcaster_user_name: String,
+    pub moderator_user_id: String,
+    pub moderator_user_login: String,
+    pub moderator_user_name: String,
+    pub reason: String,
+    pub banned_at: DateTime<Utc>,
+    pub ends_at: Option<DateTime<Utc>>,
+    pub is_permanent: bool,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+struct EventRoot {
+    pub subscription: EventSubSubscription,
+    pub event: InnerEvent,
+}
 
 // WebSockets use user access tokens
 #[allow(unused)]
@@ -57,6 +82,8 @@ impl WebsocketClient {
             accept_unmasked_frames: false,
             ..tungstenite::protocol::WebSocketConfig::default()
         };
+
+        let _ = rustls::crypto::ring::default_provider().install_default();
         let (socket, _) = tokio_tungstenite::connect_async_tls_with_config(
             &self.connect_url,
             Some(config),
@@ -73,6 +100,7 @@ impl WebsocketClient {
     pub async fn run(mut self) -> eyre::Result<()> {
         // Establish the stream
         let mut s = self.connect().await.context("when establishing connection")?;
+        debug_assert!(crate::utils::non_op_trace(format!("{:?}", s)));
         // Loop over the stream, processing messages as they come in.
         loop {
             tokio::select!(
@@ -111,6 +139,8 @@ impl WebsocketClient {
         >,
         msg: tungstenite::Message,
     ) -> eyre::Result<()> {
+        let m = msg.clone();
+        warn!("{m:?}");
         match msg {
             tungstenite::Message::Text(s) => {
                 // Parse the message into a [twitch_api::eventsub::EventsubWebsocketData]
@@ -129,16 +159,35 @@ impl WebsocketClient {
                     // Here is where you would handle the events you want to listen to
                     EventsubWebsocketData::Notification { metadata: _, payload } => {
                         match payload {
-                            Event::ChannelBanV1(eventsub::Payload { message, .. }) => {
+                            Event::ChannelBanV1(eventsub::Payload {
+                                ref message,
+                                ref subscription,
+                                ..
+                            }) => {
                                 let m = message;
-                                info!(?m, "got ban event");
+                                let s = subscription;
+                                let e = crate::utils::json::from_str::<EventRoot>(&format!(
+                                    "{:?}",
+                                    payload
+                                ))
+                                .context("Error parsing EventRoot from payload debug impl")?;
+                                let banned_user_id = e.clone().event.user_id;
+                                let user_from_db = crate::db::find_twitch_user_by_id(
+                                    banned_user_id.parse::<u32>()?,
+                                )?;
+                                let discord_users =
+                                    crate::db::find_discord_user_by_twitch_id(user_from_db.tid)?;
+                                eprintln!("[EventRoot]: {discord_users:?}");
+                                // info!(?m, ?s, "got ban event");
+                                eprintln!("[EventRoot]: {e:?}");
                             },
                             Event::ChannelUnbanV1(eventsub::Payload { message, .. }) => {
                                 let m = message;
-                                info!(?m, "got ban event");
+                                // info!(?m, "got unban event");
+                                eprintln!("{m:?}");
                             },
                             _ => {},
-                        }
+                        };
                         Ok(())
                     },
                     EventsubWebsocketData::Revocation { metadata, payload: _ } => {
@@ -223,5 +272,52 @@ impl WebsocketClient {
         }
         info!("listening to ban and unbans");
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    use super::*;
+
+    #[tokio::test]
+    async fn deserialize_eventroot() -> Result<(), serde_json::error::Error> {
+        let payload = r#"{
+            "subscription":{
+                "id":"3934e444-0cc9-44d8-9e03-8b35277dde03",
+                "status":"enabled",
+                "type":"channel.ban",
+                "version":"1",
+                "condition":{
+                    "broadcaster_user_id":"12345678"
+                },
+                "transport":{
+                    "method":"websocket",
+                    "session_id":"AgoQ4JtKY91JT2a8FuNEDgaWeRIGY2VsbC1i"
+                },
+                "created_at":"2024-09-30T05:32:33.999694466Z",
+                "cost":0
+            },
+            "event":{
+                "user_id":"696969690",
+                "user_login":"testbanuser",
+                "user_name":"TestBanUser",
+                "broadcaster_user_id":"12345678",
+                "broadcaster_user_login":"testbroadcaster",
+                "broadcaster_user_name":"TestBroadcaster",
+                "moderator_user_id":"87654321",
+                "moderator_user_login":"testmoderator",
+                "moderator_user_name":"TestModerator",
+                "reason":"",
+                "banned_at":"2024-09-30T05:35:13.221774018Z",
+                "ends_at":null,
+                "is_permanent":true
+            }
+        }"#;
+        let res: Result<EventRoot, serde_json::Error> = crate::utils::json::from_str(&payload);
+        match res {
+            Ok(_) => Ok(()),
+            Err(e) => Err(e),
+        }
     }
 }

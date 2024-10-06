@@ -5,6 +5,7 @@ use std::io::Error as IoError;
 
 #[derive(Debug, Deserialize, Serialize)]
 struct ConfigToml {
+    database: Option<ConfigTomlDatabase>,
     discord: Option<ConfigTomlDiscord>,
     twitch: Option<ConfigTomlTwitch>,
 }
@@ -25,7 +26,13 @@ struct ConfigTomlDiscord {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
+struct ConfigTomlDatabase {
+    database_url: Option<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Config {
+    pub database_url: String,
     pub discord_guildid: String,
     pub discord_token: String,
     pub twitch_channels: Vec<String>,
@@ -39,6 +46,7 @@ pub struct Config {
 impl Default for Config {
     fn default() -> Self {
         Self {
+            database_url: Default::default(),
             discord_guildid: "0".to_string(),
             discord_token: Default::default(),
             twitch_channels: Default::default(),
@@ -71,8 +79,18 @@ impl Config {
         let config_toml_result: Result<ConfigToml, toml::de::Error> = toml::from_str(&content);
         let config_toml: ConfigToml = config_toml_result.unwrap_or_else(|_| {
             eprintln!("Failed to create ConfigToml object out of config file.");
-            ConfigToml { discord: None, twitch: None }
+            ConfigToml { database: None, discord: None, twitch: None }
         });
+        let database_url: String = match config_toml.database.clone() {
+            Some(db) => db.database_url.unwrap_or_else(|| {
+                eprintln!("Missing field `databaseurl` in table [database]");
+                env::var("DATABASE_URL").unwrap_or_default()
+            }),
+            None => {
+                eprintln!("Missing table `[database]`.");
+                Default::default()
+            },
+        };
         let discord_guildid: String = match config_toml.discord.clone() {
             Some(dgid) => {
                 #[cfg(test)]
@@ -166,6 +184,7 @@ impl Config {
             .map(|i| i.to_string())
             .collect();
         Config {
+            database_url,
             discord_guildid,
             discord_token,
             twitch_channels,
@@ -182,6 +201,17 @@ impl Config {
 mod test {
     use super::*;
     use crate::utils::json::{from_str, to_string};
+
+    #[test]
+    fn derives_config_toml_database() {
+        let all_some = ConfigTomlDatabase { database_url: Some(Default::default()) };
+
+        let _url_none = ConfigTomlDatabase { database_url: None };
+        let all_some_string = to_string(&all_some).unwrap(); // derive(Serialize)
+        let _: ConfigTomlDatabase = from_str(&all_some_string).unwrap(); // derive(Deserialize)
+        let _ = all_some.clone(); // derive(Clone)
+        let _ = format!("{:?}", all_some); // derive(Debug)
+    }
 
     #[test]
     fn derives_config_toml_discord() {
@@ -311,6 +341,7 @@ mod test {
     #[test]
     fn derives_config_toml() {
         let all_some = ConfigToml {
+            database: Some(ConfigTomlDatabase { database_url: Some("".to_string()) }),
             discord: Some(ConfigTomlDiscord {
                 guildid: Some("".to_string()),
                 token: Some("".to_string()),
@@ -324,6 +355,7 @@ mod test {
             }),
         };
         let _discord_some = ConfigToml {
+            database: None,
             discord: Some(ConfigTomlDiscord {
                 guildid: Some("".to_string()),
                 token: Some("".to_string()),
@@ -331,6 +363,7 @@ mod test {
             twitch: None,
         };
         let _twitch_some = ConfigToml {
+            database: None,
             discord: None,
             twitch: Some(ConfigTomlTwitch {
                 channels: Some(vec!["Twitch".to_string(), "TwitchRivals".to_string()]),
@@ -339,6 +372,11 @@ mod test {
                 bot_name: Some("".to_string()),
                 redirect_url: Some("".to_string()),
             }),
+        };
+        let _database_some = ConfigToml {
+            database: Some(ConfigTomlDatabase { database_url: Some("".to_string()) }),
+            discord: None,
+            twitch: None,
         };
         let all_some_string = to_string(&all_some).unwrap(); // derive(Serialize)
         let _: ConfigTomlTwitch = from_str(&all_some_string).unwrap(); // derive(Deserialize)

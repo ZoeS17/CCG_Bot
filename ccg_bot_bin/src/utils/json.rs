@@ -1,6 +1,7 @@
 #[cfg(test)]
 #[allow(unused)]
 pub type JsonMap = serde_json::Map<String, Value>;
+#[cfg(test)]
 pub type Value = serde_json::Value;
 pub use serde_json::Error as JsonError;
 
@@ -16,16 +17,19 @@ use std::hash::{BuildHasher, Hash};
 #[cfg(test)]
 use serde_path_to_error::deserialize as serde_path_to_error_deserialize;
 
+#[cfg(test)]
 pub trait ToNumber {
     fn to_number(self) -> Value;
 }
 
+#[cfg(test)]
 impl<T: Into<serde_json::Number>> ToNumber for T {
     fn to_number(self) -> Value {
         Value::Number(self.into())
     }
 }
 
+#[cfg(test)]
 pub fn from_number(n: impl ToNumber) -> Value {
     n.to_number()
 }
@@ -75,23 +79,22 @@ fn parse_json<'a, T: serde::Deserialize<'a>>(s: &'a str) -> Result<T, DeserError
         .map_err(|e| DeserError::PathError { path: e.path().to_string(), error: e.into_inner() })
 }
 
+#[cfg(test)]
 pub trait AnyExt {
     fn type_name(&self) -> &'static str;
 }
 
+#[cfg(test)]
 impl<T> AnyExt for T {
     fn type_name(&self) -> &'static str {
         std::any::type_name::<T>()
     }
 }
 
+pub use serde_json::from_str;
+
 #[cfg(test)]
-pub use serde_json::{
-    // from_reader, from_slice, from_str, from_value, to_string, to_string_pretty, to_value,
-    // to_vec, to_vec_pretty,
-    from_str,
-    to_string,
-};
+pub use serde_json::to_string;
 
 #[cfg(test)]
 mod tests {
