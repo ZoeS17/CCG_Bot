@@ -205,7 +205,6 @@ pub async fn new(config: Config) -> eyre::Result<Handler> {
             let un = token.clone().name.take();
             debug_assert!(non_op_trace(format!("`{}` ?= `{}`", un, channel.to_lowercase())));
             if channel.to_lowercase() == un {
-                debug_assert!(non_op_trace(format!("skipping channel `{}`", channel.clone())));
                 let reqwest_client = <reqwest::Client>::default_client_with_name(Some(
                     "twitch-rs/eventsub"
                         .parse()
@@ -287,6 +286,7 @@ mod tests {
     #[test]
     fn debug_handler() {
         let handle = Handler(Config {
+            database_url: "".to_string(),
             discord_guildid: "".to_string(),
             discord_token: "".to_string(),
             twitch_bot_name: "".to_string(),

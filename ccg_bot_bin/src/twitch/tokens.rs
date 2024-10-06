@@ -608,3 +608,48 @@ impl TokenStorage for BotTokenStorage {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests{
+    use super::*;
+
+    #[test]
+    fn app_token() {
+        let config = crate::CONFIG.clone();
+        let access_token = twitch_oauth2::AccessToken::new(String::from("TestAccessToken"));
+        let refresh_token = Some(twitch_oauth2::RefreshToken::new(String::from("TestRefreshToken")));
+        let app_token = AppToken {
+            access_token,
+            refresh_token,
+            expires_in: Duration::new(30,0),
+            struct_created: Instant::now(),
+            client_id: ClientId::new(config.twitch_client_id),
+            client_secret: ClientSecret::new(config.twitch_client_secret),
+            scopes: vec![],
+        };
+        let app_token_str = r#"
+        {
+            "access_token": "TestAccessToken",
+            "refresh_token": "TestRefreshToken",
+            "expires_in": {
+                "secs": 30,
+                "nanos": 0
+            },
+            "struct_created": {
+                "secs_since_epoch": 1728195721,
+                "nanos_since_epoch": 237168157
+            },
+            "client_id": "IamAclientId",
+            "client_secret": "IamAclientSecret",
+            "scopes": []
+        }"#;
+        let _: AppToken = serde_json::from_str(&app_token_str).unwrap();
+        let _ = AppToken::token_type();
+        let _ = AppToken::client_id(&app_token);
+        let _ = AppToken::token(&app_token);
+        let _ = AppToken::login(&app_token);
+        let _ = AppToken::user_id(&app_token);
+        let _ = AppToken::expires_in(&app_token);
+        let _ = AppToken::scopes(&app_token);
+    }
+}

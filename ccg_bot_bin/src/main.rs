@@ -30,6 +30,7 @@ use std::result::Result as StdResult;
 mod tests;
 
 mod config;
+mod db;
 mod discord;
 #[macro_use]
 mod internals;
@@ -118,9 +119,11 @@ impl StdError for Error {
 async fn main() -> StdResult<(), Box<dyn StdError + Send>> {
     let mut log_var = String::from("");
     for (k, v) in env::vars() {
-        if k.starts_with("RUST_LOG") {
-            println!("'{k}'='{v}'");
-            log_var = v.to_string();
+        if k.starts_with("RUST_") {
+            // println!("{k}={v}");
+            if k.starts_with("RUST_LOG") {
+                log_var = v.to_string();
+            }
         }
     }
     // Initialize the logger to use environment variables.
