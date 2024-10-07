@@ -29,7 +29,7 @@ jobs:
       - name: Setup MySql
         run: |
           sudo /etc/init.d/mysql start
-          sudo mysql -e "CREATE USER 'ccgbotrust'@'localhost' IDENTIFIED WITH 'caching_sha2_password' REQUIRE NONE PASSWORD EXPIRE ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT PASSWORD REQUIRE CURRENT DEFAULT;" --connect-expired-password
+          mysql -e "CREATE USER 'ccgbotrust'@'localhost' IDENTIFIED WITH 'caching_sha2_password' REQUIRE NONE PASSWORD EXPIRE ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT PASSWORD REQUIRE CURRENT DEFAULT;" -uroot -proot --connect-expired-password
           mysql -e "CREATE DATABASE IF NOT EXISTS $DB_DATABASE;" -u$DB_USER
           mysql -e "CREATE TABLE `twitchuser` (`tid` int unsigned NOT NULL, `username` varchar(25) NOT NULL, PRIMARY KEY (`tid`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci" -u$DB_USER
           mysql -e "CREATE TABLE `discorduser` (`did` bigint unsigned NOT NULL,`username` varchar(25) NOT NULL,PRIMARY KEY (`did`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci" -u$DB_USER
@@ -100,7 +100,7 @@ jobs:
       - name: Setup MySql
         run: |
           brew services start mysql
-          sudo mysql -e "CREATE USER 'ccgbotrust'@'localhost' IDENTIFIED WITH 'caching_sha2_password' REQUIRE NONE PASSWORD EXPIRE ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT PASSWORD REQUIRE CURRENT DEFAULT;" --connect-expired-password
+          mysql -e "CREATE USER 'ccgbotrust'@'localhost' IDENTIFIED WITH 'caching_sha2_password' REQUIRE NONE PASSWORD EXPIRE ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT PASSWORD REQUIRE CURRENT DEFAULT;" -uroot -proot --connect-expired-password
           mysql -e "CREATE DATABASE IF NOT EXISTS $DB_DATABASE;" -u$DB_USER
           mysql -e "CREATE TABLE `twitchuser` (`tid` int unsigned NOT NULL, `username` varchar(25) NOT NULL, PRIMARY KEY (`tid`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci" -u$DB_USER
           mysql -e "CREATE TABLE `discorduser` (`did` bigint unsigned NOT NULL,`username` varchar(25) NOT NULL,PRIMARY KEY (`did`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci" -u$DB_USER
@@ -132,7 +132,7 @@ jobs:
       - name: Setup MySql
         run: |
           sudo /etc/init.d/mysql start
-          sudo mysql -e "CREATE USER 'ccgbotrust'@'localhost' IDENTIFIED WITH 'caching_sha2_password' REQUIRE NONE PASSWORD EXPIRE ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT PASSWORD REQUIRE CURRENT DEFAULT;" --connect-expired-password
+          mysql -e "CREATE USER 'ccgbotrust'@'localhost' IDENTIFIED WITH 'caching_sha2_password' REQUIRE NONE PASSWORD EXPIRE ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT PASSWORD REQUIRE CURRENT DEFAULT;" -uroot -proot --connect-expired-password
           mysql -e "CREATE DATABASE IF NOT EXISTS $DB_DATABASE;" -u$DB_USER
           mysql -e "CREATE TABLE `twitchuser` (`tid` int unsigned NOT NULL, `username` varchar(25) NOT NULL, PRIMARY KEY (`tid`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci" -u$DB_USER
           mysql -e "CREATE TABLE `discorduser` (`did` bigint unsigned NOT NULL,`username` varchar(25) NOT NULL,PRIMARY KEY (`did`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci" -u$DB_USER
