@@ -75,13 +75,13 @@ jobs:
         run: |
           sudo /etc/init.d/mysql start
           mysql -e "CREATE USER 'ccgbotrust'@'localhost' IDENTIFIED WITH 'caching_sha2_password' REQUIRE NONE PASSWORD EXPIRE ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT PASSWORD REQUIRE CURRENT DEFAULT; FLUSH PRIVILEGES;" -u$DB_USER -p$DB_PASS
-          mysql -e 'CREATE DATABASE IF NOT EXISTS $DB_DATABASE;' -u$DB_USER -p$DB_PASS
-          mysql -e 'CREATE TABLE `twitchuser` (`tid` int unsigned NOT NULL, `username` varchar(25) NOT NULL, PRIMARY KEY (`tid`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci' -u$DB_USER -p$DB_PASS
-          mysql -e 'CREATE TABLE `discorduser` (`did` bigint unsigned NOT NULL,`username` varchar(25) NOT NULL,PRIMARY KEY (`did`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci' -u$DB_USER -p$DB_PASS
-          mysql -e 'CREATE TABLE `users` (`id` int unsigned NOT NULL, `uid` int unsigned NOT NULL, `discord_id` bigint unsigned NOT NULL, `twitch_id` int unsigned NOT NULL, PRIMARY KEY (`id`), KEY `discord_id` (`discord_id`), KEY `twitch_id` (`twitch_id`), CONSTRAINT `users_ibfk_1` FOREIGN KEY (`discord_id`) REFERENCES `discorduser` (`did`) ON DELETE CASCADE ON UPDATE CASCADE, CONSTRAINT `users_ibfk_2` FOREIGN KEY (`twitch_id`) REFERENCES `twitchuser` (`tid`) ON DELETE CASCADE ON UPDATE CASCADE) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci' -u$DB_USER -p$DB_PASS
-          mysql -e 'INSERT INTO `twitchuser` VALUES (12345678, "testuser");' -u$DB_USER -p$DB_PASS
-          mysql -e 'INSERT INTO `discorduser` VALUES (123456789012345, "testuser");' -u$DB_USER -p$DB_PASS
-          mysql -e 'INSERT INTO `users` VALUES (1, 1, 123456789012345, 12345678)' -u$DB_USER -p$DB_PASS
+          mysql -e 'CREATE DATABASE IF NOT EXISTS $DB_DATABASE;' -u$DB_USER -p$DB_PASS $DB_DATABASE
+          mysql -e 'CREATE TABLE `twitchuser` (`tid` int unsigned NOT NULL, `username` varchar(25) NOT NULL, PRIMARY KEY (`tid`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci' -u$DB_USER -p$DB_PASS $DB_DATABASE
+          mysql -e 'CREATE TABLE `discorduser` (`did` bigint unsigned NOT NULL,`username` varchar(25) NOT NULL,PRIMARY KEY (`did`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci' -u$DB_USER -p$DB_PASS $DB_DATABASE
+          mysql -e 'CREATE TABLE `users` (`id` int unsigned NOT NULL, `uid` int unsigned NOT NULL, `discord_id` bigint unsigned NOT NULL, `twitch_id` int unsigned NOT NULL, PRIMARY KEY (`id`), KEY `discord_id` (`discord_id`), KEY `twitch_id` (`twitch_id`), CONSTRAINT `users_ibfk_1` FOREIGN KEY (`discord_id`) REFERENCES `discorduser` (`did`) ON DELETE CASCADE ON UPDATE CASCADE, CONSTRAINT `users_ibfk_2` FOREIGN KEY (`twitch_id`) REFERENCES `twitchuser` (`tid`) ON DELETE CASCADE ON UPDATE CASCADE) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci' -u$DB_USER -p$DB_PASS $DB_DATABASE
+          mysql -e 'INSERT INTO `twitchuser` VALUES (12345678, "testuser");' -u$DB_USER -p$DB_PASS $DB_DATABASE
+          mysql -e 'INSERT INTO `discorduser` VALUES (123456789012345, "testuser");' -u$DB_USER -p$DB_PASS $DB_DATABASE
+          mysql -e 'INSERT INTO `users` VALUES (1, 1, 123456789012345, 12345678)' -u$DB_USER -p$DB_PASS $DB_DATABASE
       - name: cargo hack
         run: cargo hack --feature-powerset check --tests --workspace
   msrv:
