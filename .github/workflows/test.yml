@@ -34,7 +34,7 @@ jobs:
       - name: Create Database
         run: mysql -e 'CREATE DATABASE IF NOT EXISTS $DB_DATABASE;' -u$DB_USER -p$DB_PASS
       - name: "404"
-        run: mysql -e 'SELECT table_schema FROM INFORMATION_SCHEMA.tables;'
+        run: mysql -e 'SELECT table_schema FROM INFORMATION_SCHEMA.tables;' -u$DB_USER -p$DB_PASS
       - name: Create tables
         run: |
           mysql -e 'CREATE TABLE `twitchuser` (`tid` int unsigned NOT NULL, `username` varchar(25) NOT NULL, PRIMARY KEY (`tid`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci' -u$DB_USER -p$DB_PASS $DB_DATABASE
