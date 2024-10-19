@@ -110,6 +110,7 @@ jobs:
       # start service and create user
         run: |
           brew services start mysql
+          env
           mysql -e "CREATE USER 'ccgbotrust'@'localhost' IDENTIFIED WITH 'caching_sha2_password' REQUIRE NONE PASSWORD EXPIRE NEVER ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT PASSWORD REQUIRE CURRENT DEFAULT; FLUSH PRIVILEGES; UNLOCK TABLES;" -u$DB_USER -p$DB_PASS -h localhost
           mysql -e "GRANT ALL ON $DB_DATABASE.* TO 'ccgbotrust'@'localhost'; FLUSH PRIVILEGES;" -u$DB_USER -p$DB_PASS -h localhost
       - name: Create Database
