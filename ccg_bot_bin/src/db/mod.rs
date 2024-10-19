@@ -7,16 +7,13 @@ use eyre::Context;
 use self::models::*;
 use crate::CONFIG;
 
-fn errot_to_eyre(e: ConnectionError) -> eyre::Report {
-    eyre::Report::new(e) 
+fn error_to_eyre(e: ConnectionError) -> eyre::Report {
+    eyre::Report::new(e)
 }
 
 fn establish_connection() -> eyre::Result<MysqlConnection> {
     let database_url = CONFIG.clone().database_url;
-    MysqlConnection::establish(&database_url)
-       .map_err(|error| {
-           error_to_eyre(error)
-       })
+    MysqlConnection::establish(&database_url).map_err(|error| error_to_eyre(error))
 }
 
 /// Pull a [TwitchUser] from the database by its username
