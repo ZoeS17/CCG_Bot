@@ -7,17 +7,23 @@ use eyre::Context;
 use self::models::*;
 use crate::CONFIG;
 
-fn establish_connection() -> MysqlConnection {
+fn errot_to_eyre(e: ConnectionError) -> eyre::Report {
+    eyre::Report::new(e) 
+}
+
+fn establish_connection() -> eyre::Result<MysqlConnection> {
     let database_url = CONFIG.clone().database_url;
     MysqlConnection::establish(&database_url)
-        .unwrap_or_else(|_| panic!("Error connecting to {}", database_url))
+       .map_err(|error| {
+           error_to_eyre(error)
+       })
 }
 
 /// Pull a [TwitchUser] from the database by its username
 pub fn find_twitch_user(un: String) -> eyre::Result<TwitchUser> {
     use self::schema::twitchuser::dsl::*;
 
-    let connection = &mut establish_connection();
+    let connection = &mut establish_connection()?;
     twitchuser
         .filter(username.eq(un))
         .select(TwitchUser::as_select())
@@ -32,7 +38,7 @@ pub fn find_twitch_user(un: String) -> eyre::Result<TwitchUser> {
 pub fn find_twitch_user_by_id(uid: u32) -> eyre::Result<TwitchUser> {
     use self::schema::twitchuser::dsl::*;
 
-    let connection = &mut establish_connection();
+    let connection = &mut establish_connection()?;
     twitchuser
         .filter(tid.eq(uid))
         .select(TwitchUser::as_select())
@@ -48,7 +54,7 @@ pub fn find_twitch_user_by_id(uid: u32) -> eyre::Result<TwitchUser> {
 pub fn find_discord_user(un: String) -> eyre::Result<DiscordUser> {
     use self::schema::discorduser::dsl::*;
 
-    let connection = &mut establish_connection();
+    let connection = &mut establish_connection()?;
 
     discorduser
         .select(DiscordUser::as_select())
@@ -66,7 +72,7 @@ pub fn find_discord_user(un: String) -> eyre::Result<DiscordUser> {
 pub fn find_discord_user_by_id(id: u64) -> eyre::Result<DiscordUser> {
     use self::schema::discorduser::dsl::*;
 
-    let connection = &mut establish_connection();
+    let connection = &mut establish_connection()?;
 
     discorduser
         .select(DiscordUser::as_select())
@@ -86,7 +92,7 @@ pub fn find_discord_user_by_twitch_id(tid: u32) -> eyre::Result<Vec<DiscordUser>
 
     let mut result: Vec<DiscordUser> = vec![];
 
-    let connection = &mut establish_connection();
+    let connection = &mut establish_connection()?;
     let twitch_users: Vec<u64> = users
         .select(discord_id)
         .filter(twitch_id.eq(tid))
