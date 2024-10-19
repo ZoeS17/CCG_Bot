@@ -28,9 +28,10 @@ jobs:
         if: hashFiles('Cargo.lock') == ''
         run: cargo generate-lockfile
       - name: Setup MySql
+      # start service and create user
         run: |
           sudo /etc/init.d/mysql start
-          mysql -e "CREATE USER 'ccgbotrust'@'localhost' IDENTIFIED WITH 'caching_sha2_password' REQUIRE NONE PASSWORD EXPIRE ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT PASSWORD REQUIRE CURRENT DEFAULT; FLUSH PRIVILEGES; UNLOCK TABLES;" -u$DB_USER -p$DB_PASS
+          mysql -e "CREATE USER 'ccgbotrust'@'%' IDENTIFIED WITH 'caching_sha2_password' REQUIRE NONE PASSWORD EXPIRE ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT PASSWORD REQUIRE CURRENT DEFAULT; FLUSH PRIVILEGES; UNLOCK TABLES;" -u$DB_USER -p$DB_PASS
       - name: Create Database
         run: mysql -e "CREATE DATABASE IF NOT EXISTS $DB_DATABASE;" -u$DB_USER -p$DB_PASS
       - name: Create tables
@@ -105,9 +106,10 @@ jobs:
         if: hashFiles('Cargo.lock') == ''
         run: cargo generate-lockfile
       - name: Setup MySql
+      # start service and create user
         run: |
           brew services start mysql
-          mysql -e "CREATE USER 'ccgbotrust'@'localhost' IDENTIFIED WITH 'caching_sha2_password' REQUIRE NONE PASSWORD EXPIRE ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT PASSWORD REQUIRE CURRENT DEFAULT; FLUSH PRIVILEGES; UNLOCK TABLES;" -u$DB_USER -p$DB_PASS
+          mysql -e "CREATE USER 'ccgbotrust'@'%' IDENTIFIED WITH 'caching_sha2_password' REQUIRE NONE PASSWORD EXPIRE ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT PASSWORD REQUIRE CURRENT DEFAULT; FLUSH PRIVILEGES; UNLOCK TABLES;" -u$DB_USER -p$DB_PASS
       - name: Create Database
         run: mysql -e "CREATE DATABASE IF NOT EXISTS $DB_DATABASE;" -u$DB_USER -p$DB_PASS
       - name: Create tables
@@ -143,9 +145,10 @@ jobs:
         if: hashFiles('Cargo.lock') == ''
         run: cargo generate-lockfile
       - name: Setup MySql
+      # start service and create user
         run: |
           sudo /etc/init.d/mysql start
-          mysql -e "CREATE USER 'ccgbotrust'@'localhost' IDENTIFIED WITH 'caching_sha2_password' REQUIRE NONE PASSWORD EXPIRE ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT PASSWORD REQUIRE CURRENT DEFAULT; FLUSH PRIVILEGES; UNLOCK TABLES;" -u$DB_USER -p$DB_PASS
+          mysql -e "CREATE USER 'ccgbotrust'@'%' IDENTIFIED WITH 'caching_sha2_password' REQUIRE NONE PASSWORD EXPIRE ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT PASSWORD REQUIRE CURRENT DEFAULT; FLUSH PRIVILEGES; UNLOCK TABLES;" -u$DB_USER -p$DB_PASS
       - name: Create Database
         run: mysql -e "CREATE DATABASE IF NOT EXISTS $DB_DATABASE;" -u$DB_USER -p$DB_PASS
       - name: Create tables
