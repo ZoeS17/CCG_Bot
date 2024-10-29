@@ -29,10 +29,7 @@ pub fn has_bot_admin_rights(user_login: String, config: &crate::Config) -> bool 
 
 pub async fn parse_command(
     message: ServerMessage,
-    irc_client: TwitchIRCClient<
-        SecureTCPTransport,
-        RefreshingLoginCredentials<BotTokenStorage>,
-    >,
+    irc_client: TwitchIRCClient<SecureTCPTransport, RefreshingLoginCredentials<BotTokenStorage>>,
 ) {
     match message {
         // pseudo-default case
