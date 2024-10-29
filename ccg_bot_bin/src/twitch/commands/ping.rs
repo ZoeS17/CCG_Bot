@@ -3,7 +3,7 @@
 use twitch_irc::{
     login::RefreshingLoginCredentials,
     message::PrivmsgMessage,
-    transport::tcp::{TCPTransport, TLS},
+    transport::tcp::{SecureTCPTransport, TLS},
     Error, TwitchIRCClient,
 };
 
@@ -11,8 +11,8 @@ use super::BotTokenStorage;
 
 pub async fn handle(
     message: PrivmsgMessage,
-    client: TwitchIRCClient<TCPTransport<TLS>, RefreshingLoginCredentials<BotTokenStorage>>,
-) -> Result<(), Error<TCPTransport<TLS>, RefreshingLoginCredentials<BotTokenStorage>>> {
+    client: TwitchIRCClient<SecureTCPTransport<TLS>, RefreshingLoginCredentials<BotTokenStorage>>,
+) -> Result<(), Error<SecureTCPTransport<TLS>, RefreshingLoginCredentials<BotTokenStorage>>> {
     let reply_to = message;
     let response = "pong".to_string();
     // It's unfortunate that the call to the say_in_reply_to function on client can't be tested directly
