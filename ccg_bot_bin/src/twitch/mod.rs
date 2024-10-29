@@ -25,7 +25,7 @@ use twitch_api::{client::ClientDefault, HelixClient};
 use twitch_irc::login::RefreshingLoginCredentials;
 #[cfg(not(test))]
 use twitch_irc::message::{IRCMessage, JoinMessage, PrivmsgMessage, ServerMessage};
-use twitch_irc::TwitchIRCClient;
+use twitch_irc::{SecureTCPTransport, TwitchIRCClient};
 
 //module(s)
 pub(crate) mod api;
