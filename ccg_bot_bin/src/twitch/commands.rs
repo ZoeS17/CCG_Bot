@@ -1,6 +1,6 @@
 use twitch_irc::login::RefreshingLoginCredentials;
 use twitch_irc::message::{Badge, IRCMessage, PrivmsgMessage, ServerMessage, WhisperMessage};
-use twitch_irc::{transport::tcp::TCPTransport, TwitchIRCClient};
+use twitch_irc::{transport::tcp::SecureTCPTransport, TwitchIRCClient};
 
 use super::tokens::BotTokenStorage;
 
@@ -30,7 +30,7 @@ pub fn has_bot_admin_rights(user_login: String, config: &crate::Config) -> bool 
 pub async fn parse_command(
     message: ServerMessage,
     irc_client: TwitchIRCClient<
-        TCPTransport<twitch_irc::transport::tcp::TLS>,
+        SecureTCPTransport<twitch_irc::transport::tcp::TLS>,
         RefreshingLoginCredentials<BotTokenStorage>,
     >,
 ) {
