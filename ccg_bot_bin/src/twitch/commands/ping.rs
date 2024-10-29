@@ -1,9 +1,7 @@
 //Example-ish command
 
 use twitch_irc::{
-    login::RefreshingLoginCredentials,
-    message::PrivmsgMessage,
-    transport::tcp::SecureTCPTransport,
+    login::RefreshingLoginCredentials, message::PrivmsgMessage, transport::tcp::SecureTCPTransport,
     Error, TwitchIRCClient,
 };
 
