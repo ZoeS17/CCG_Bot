@@ -6,16 +6,16 @@ use crate::{error, debug};
 use twitch_irc::{
     login::RefreshingLoginCredentials,
     message::{IRCMessage, WhisperMessage},
-    transport::tcp::{TCPTransport, TLS},
+    transport::tcp::SecureTCPTransport,
     Error, TwitchIRCClient,
 };
 
 use super::BotTokenStorage;
 
 async fn send_message(
-    client: TwitchIRCClient<TCPTransport<TLS>, RefreshingLoginCredentials<BotTokenStorage>>,
+    client: TwitchIRCClient<SecureTCPTransport, RefreshingLoginCredentials<BotTokenStorage>>,
     message: IRCMessage,
-) -> Result<(), Error<TCPTransport<TLS>, RefreshingLoginCredentials<BotTokenStorage>>> {
+) -> Result<(), Error<SecureTCPTransport, RefreshingLoginCredentials<BotTokenStorage>>> {
     #[cfg(test)]
     {
         let _ = client;
@@ -30,8 +30,8 @@ async fn send_message(
 
 pub async fn handle(
     message: WhisperMessage,
-    client: TwitchIRCClient<TCPTransport<TLS>, RefreshingLoginCredentials<BotTokenStorage>>,
-) -> Result<(), Error<TCPTransport<TLS>, RefreshingLoginCredentials<BotTokenStorage>>> {
+    client: TwitchIRCClient<SecureTCPTransport, RefreshingLoginCredentials<BotTokenStorage>>,
+) -> Result<(), Error<SecureTCPTransport, RefreshingLoginCredentials<BotTokenStorage>>> {
     #[cfg(test)]
     let _ = client;
     // It's unfortunate that the call to the say_in_reply_to function on client can't be tested directly
@@ -47,7 +47,7 @@ pub async fn handle(
     let content = message.message_text;
     let parsed_content: Vec<String> = content.split_whitespace().map(|s| s.to_string()).collect();
     let (first, second): (String, String);
-    let res: Result<(), Error<TCPTransport<TLS>, RefreshingLoginCredentials<BotTokenStorage>>>;
+    let res: Result<(), Error<SecureTCPTransport, RefreshingLoginCredentials<BotTokenStorage>>>;
     if parsed_content.len() == 3 {
         (first, second) =
             (parsed_content.get(1).unwrap().clone(), parsed_content.get(2).unwrap().clone());

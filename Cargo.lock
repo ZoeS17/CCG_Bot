@@ -2923,7 +2923,7 @@ dependencies = [
 [[package]]
 name = "twitch-irc"
 version = "5.0.1"
-source = "git+https://github.com/robotty/twitch-irc-rs#c0e240991986fe9228ff04a3cf6f6b86c813dc94"
+source = "git+https://github.com/robotty/twitch-irc-rs#5996f13d8f13c61126f32f283c2605a548442433"
 dependencies = [
  "async-trait",
  "async-tungstenite",
