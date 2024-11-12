@@ -13,6 +13,10 @@ jobs:
   nightly:
     runs-on: ubuntu-latest
     name: ubuntu / nightly
+    env:
+      DB_DATABASE: ccgbot_rust
+      DB_USER: root
+      DB_PASS: root
     steps:
       - uses: actions/checkout@v4
         with:
@@ -50,6 +54,10 @@ jobs:
     # first place, since we'd just redo what happened in the regular test job.
     # Unfortunately, hashFiles only works in if on steps, so we repeat it.
     # if: hashFiles('Cargo.lock') != ''
+    env:
+      DB_DATABASE: ccgbot_rust
+      DB_USER: root
+      DB_PASS: root
     steps:
       - uses: actions/checkout@v4
         with:
